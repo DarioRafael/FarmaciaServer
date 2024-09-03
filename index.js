@@ -44,9 +44,32 @@ app.post('/api/v1/ingresar', async (req, res) => {
   }
 });
 
+
+// Nueva ruta para obtener todos los trabajadores
+app.get('/api/v1/trabajadores', async (req, res) => {
+  console.log('Petición para obtener todos los trabajadores recibida');
+
+  try {
+    const pool = await sql.connect(config);
+    const request = pool.request();
+    const result = await request.query('SELECT * FROM Trabajadores');
+
+    res.status(200).json(result.recordset);
+  } catch (err) {
+    console.error('Error al obtener los trabajadores:', err);
+    res.status(500).send('Server error');
+  }
+});
+
+
+
 // Añadir esta línea para iniciar el servidor
 app.listen(port, () => {
   console.log(`Servidor en ejecución en el puerto ${port}`);
 });
+
+
+
+
 
 module.exports = app;
