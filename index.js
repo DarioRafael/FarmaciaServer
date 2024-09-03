@@ -30,7 +30,10 @@ app.use(cors({
     } else {
       callback(new Error('Not allowed by CORS'));
     }
-  }
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE'], // Métodos HTTP permitidos
+  allowedHeaders: ['Content-Type', 'Authorization'], // Headers permitidos
+  credentials: true, // Si necesitas enviar cookies u otros datos de autenticación
 }));
 
 app.use(express.json());
