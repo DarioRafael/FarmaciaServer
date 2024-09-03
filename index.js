@@ -18,7 +18,12 @@ const config = {
   },
 };
 
-app.use(cors({ origin: '*' }));
+app.use(cors({
+  origin: 'https://moderna-shop-dch54tpat-dariorafaels-projects.vercel.app', // Reemplaza con tu dominio específico
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+  credentials: true
+}));
+
 app.use(express.json());
 
 app.post('/api/v1/ingresar', async (req, res) => {
