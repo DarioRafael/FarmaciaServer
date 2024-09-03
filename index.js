@@ -18,10 +18,19 @@ const config = {
   },
 };
 
+const allowedOrigins = [
+  'https://moderna-shop-dch54tpat-dariorafaels-projects.vercel.app',
+  'https://moderna-shop-app.vercel.app'
+];
+
 app.use(cors({
-  origin: 'https://moderna-shop-dch54tpat-dariorafaels-projects.vercel.app', // Reemplaza con tu dominio específico
-  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-  credentials: true
+  origin: function(origin, callback) {
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('No permitido por CORS'));
+    }
+  }
 }));
 
 app.use(express.json());
