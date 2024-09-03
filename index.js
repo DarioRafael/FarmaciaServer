@@ -20,8 +20,7 @@ const config = {
 
 const allowedOrigins = [
   'https://moderna-shop-dch54tpat-dariorafaels-projects.vercel.app',
-  'https://moderna-shop-app.vercel.app',
-  'https://moderna-shop-app.vercel.app/#/login'
+  'https://moderna-shop-app.vercel.app'
 ];
 
 app.use(cors({
