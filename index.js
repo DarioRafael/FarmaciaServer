@@ -70,7 +70,7 @@ app.get('/api/v1/trabajadores', async (req, res) => {
   try {
     const pool = await sql.connect(config);
     const request = pool.request();
-    const result = await request.query('SELECT * FROM Trabajadores');
+    const result = await request.query('SELECT id, nombre, correo FROM Trabajadores');
 
     res.status(200).json(result.recordset);
   } catch (err) {
