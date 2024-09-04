@@ -25,20 +25,21 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: function (origin, callback) {
-    if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
+    // Permitir solicitudes desde cualquier origen (solo para pruebas)
+    callback(null, true);
   },
-  methods: ['GET', 'POST', 'PUT', 'DELETE'], // Métodos HTTP permitidos
-  allowedHeaders: ['Content-Type', 'Authorization'], // Headers permitidos
-  credentials: true, // Si necesitas enviar cookies u otros datos de autenticación
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
 }));
+
 
 app.use(express.json());
 
 app.post('/api/v1/ingresar', async (req, res) => {
+  console.log('Headers:', req.headers);
+  console.log('Body:', req.body);
+
   const { email, password } = req.body;
   console.log('Petición de inicio de sesión recibida:', { email, password });
 
@@ -46,9 +47,9 @@ app.post('/api/v1/ingresar', async (req, res) => {
     const pool = await sql.connect(config);
     const request = pool.request();
     const result = await request
-      .input('correo', sql.VarChar, email)
-      .input('contraseña', sql.VarChar, password)
-      .query('SELECT * FROM Trabajadores WHERE correo = @correo AND contraseña = @contraseña');
+        .input('correo', sql.VarChar, email)
+        .input('contraseña', sql.VarChar, password)
+        .query('SELECT * FROM Trabajadores WHERE correo = @correo AND contraseña = @contraseña');
 
     if (result.recordset.length > 0) {
       res.status(200).send('Login successful');
@@ -60,6 +61,7 @@ app.post('/api/v1/ingresar', async (req, res) => {
     res.status(500).send('Server error');
   }
 });
+
 
 
 // Nueva ruta para obtener todos los trabajadores
