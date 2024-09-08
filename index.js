@@ -84,41 +84,51 @@ app.get('/api/v1/trabajadores', async (req, res) => {
 
 
 app.post('/api/v1/actualizar-contrasenas', async (req, res) => {
-  let transaction;
   try {
     const pool = await sql.connect(config);
+
+    // Obtener todas las contraseñas de la tabla Trabajadores
     const request = pool.request();
     const result = await request.query('SELECT id, contraseña FROM Trabajadores');
 
-    transaction = new sql.Transaction(pool);
+    // Iniciar una transacción
+    const transaction = new sql.Transaction(pool);
     await transaction.begin();
 
-    const transactionRequest = new sql.Request(transaction);
-
     for (const user of result.recordset) {
-      const hashedPassword = await bcrypt.hash(user.contraseña, 10);
-      await transactionRequest
-          .input('id', sql.Int, user.id)
-          .input('contraseña', sql.VarChar, hashedPassword)
-          .query('UPDATE Trabajadores SET contraseña = @contraseña WHERE id = @id');
+      if (user.contraseña) {
+        const hashedPassword = await bcrypt.hash(user.contraseña, 10);
+
+        // Crear una nueva solicitud para cada consulta dentro de la transacción
+        const transactionRequest = new sql.Request(transaction);
+
+        await transactionRequest
+            .input('id', sql.Int, user.id)
+            .input('contraseña', sql.VarChar, hashedPassword)
+            .query('UPDATE Trabajadores SET contraseña = @contraseña WHERE id = @id');
+      }
     }
 
+    // Confirmar la transacción
     await transaction.commit();
+
     res.status(200).send('Contraseñas actualizadas correctamente.');
   } catch (err) {
-    console.error('Error al actualizar contraseñas:', err);
+    console.error('Error al actualizar contraseñas:', err.message);
 
+    // Manejo de errores y revertir la transacción si es necesario
     if (transaction) {
       try {
         await transaction.rollback();
       } catch (rollbackErr) {
-        console.error('Error al revertir la transacción:', rollbackErr);
+        console.error('Error al revertir la transacción:', rollbackErr.message);
       }
     }
 
     res.status(500).send('Error al actualizar contraseñas.');
   }
 });
+
 
 
 
