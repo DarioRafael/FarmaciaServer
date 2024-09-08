@@ -2,9 +2,10 @@ require('dotenv').config();
 const express = require('express');
 const sql = require('mssql');
 const cors = require('cors');
-const bcrypt = require('bcrypt');
 const app = express();
 const port = process.env.PORT || 3000;
+
+
 
 const config = {
   user: process.env.DB_USER,
@@ -31,6 +32,8 @@ app.use(cors({
   credentials: true,
 }));
 
+
+
 app.use(express.json());
 
 app.post('/api/v1/ingresar', async (req, res) => {
@@ -45,16 +48,11 @@ app.post('/api/v1/ingresar', async (req, res) => {
     const request = pool.request();
     const result = await request
         .input('correo', sql.VarChar, email)
-        .query('SELECT contraseña FROM Trabajadores WHERE correo = @correo');
+        .input('contraseña', sql.VarChar, password)
+        .query('SELECT * FROM Trabajadores WHERE correo = @correo AND contraseña = @contraseña');
 
     if (result.recordset.length > 0) {
-      const hashedPassword = result.recordset[0].contraseña;
-      const isMatch = await bcrypt.compare(password, hashedPassword);
-      if (isMatch) {
-        res.status(200).send('Login successful');
-      } else {
-        res.status(401).send('Invalid email or password');
-      }
+      res.status(200).send('Login successful');
     } else {
       res.status(401).send('Invalid email or password');
     }
@@ -64,6 +62,9 @@ app.post('/api/v1/ingresar', async (req, res) => {
   }
 });
 
+
+
+// Nueva ruta para obtener todos los trabajadores
 app.get('/api/v1/trabajadores', async (req, res) => {
   console.log('Petición para obtener todos los trabajadores recibida');
 
@@ -79,8 +80,38 @@ app.get('/api/v1/trabajadores', async (req, res) => {
   }
 });
 
+
+
+app.post('/api/v1/actualizar-contraseñas', async (req, res) => {
+  try {
+    const pool = await sql.connect(config);
+    const request = pool.request();
+    const result = await request.query('SELECT id, contraseña FROM Trabajadores');
+
+    for (const user of result.recordset) {
+      const hashedPassword = await bcrypt.hash(user.contraseña, 10);
+      await request
+          .input('id', sql.Int, user.id)
+          .input('contraseña', sql.VarChar, hashedPassword)
+          .query('UPDATE Trabajadores SET contraseña = @contraseña WHERE id = @id');
+    }
+
+    res.status(200).send('Contraseñas actualizadas correctamente.');
+  } catch (err) {
+    console.error('Error al actualizar contraseñas:', err);
+    res.status(500).send('Error al actualizar contraseñas.');
+  }
+});
+
+
+
+// Añadir esta línea para iniciar el servidor
 app.listen(port, () => {
   console.log(`Servidor en ejecución en el puerto ${port}`);
 });
+
+
+
+
 
 module.exports = app;
