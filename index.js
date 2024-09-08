@@ -84,19 +84,15 @@ app.get('/api/v1/trabajadores', async (req, res) => {
 
 
 app.post('/api/v1/actualizar-contrasenas', async (req, res) => {
+  let transaction;
   try {
-    // Conectar al pool de base de datos
     const pool = await sql.connect(config);
     const request = pool.request();
-
-    // Obtener todas las contraseñas de la tabla Trabajadores
     const result = await request.query('SELECT id, contraseña FROM Trabajadores');
 
-    // Iniciar una transacción
-    const transaction = new sql.Transaction(pool);
+    transaction = new sql.Transaction(pool);
     await transaction.begin();
 
-    // Preparar una nueva consulta dentro de la transacción
     const transactionRequest = new sql.Request(transaction);
 
     for (const user of result.recordset) {
@@ -107,17 +103,17 @@ app.post('/api/v1/actualizar-contrasenas', async (req, res) => {
           .query('UPDATE Trabajadores SET contraseña = @contraseña WHERE id = @id');
     }
 
-    // Confirmar la transacción
     await transaction.commit();
-
-    // Responder con éxito
     res.status(200).send('Contraseñas actualizadas correctamente.');
   } catch (err) {
     console.error('Error al actualizar contraseñas:', err);
 
-    // Manejo de errores y revertir la transacción si es necesario
     if (transaction) {
-      await transaction.rollback();
+      try {
+        await transaction.rollback();
+      } catch (rollbackErr) {
+        console.error('Error al revertir la transacción:', rollbackErr);
+      }
     }
 
     res.status(500).send('Error al actualizar contraseñas.');
