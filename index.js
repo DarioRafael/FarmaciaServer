@@ -83,7 +83,7 @@ app.get('/api/v1/trabajadores', async (req, res) => {
 
 
 
-app.post('/api/v1/actualizar-contraseñas', async (req, res) => {
+app.post('/api/v1/actualizar-contrasenas', async (req, res) => {
   try {
     // Conectar al pool de base de datos
     const pool = await sql.connect(config);
