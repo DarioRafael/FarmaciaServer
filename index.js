@@ -38,30 +38,33 @@ app.use(cors({
 app.use(express.json());
 
 app.post('/api/v1/ingresar', async (req, res) => {
-  console.log('Headers:', req.headers);
-  console.log('Body:', req.body);
-
   const { email, password } = req.body;
-  console.log('Petición de inicio de sesión recibida:', { email, password });
 
   try {
     const pool = await sql.connect(config);
     const request = pool.request();
     const result = await request
         .input('correo', sql.VarChar, email)
-        .input('contraseña', sql.VarChar, password)
-        .query('SELECT * FROM Trabajadores WHERE correo = @correo AND contraseña = @contraseña');
+        .query('SELECT * FROM Trabajadores WHERE correo = @correo');
 
     if (result.recordset.length > 0) {
-      res.status(200).send('Login successful');
+      const user = result.recordset[0];
+      const match = await bcrypt.compare(password, user.contraseña);
+
+      if (match) {
+        res.status(200).send('Login successful');
+      } else {
+        res.status(401).send('Invalid email or password');
+      }
     } else {
       res.status(401).send('Invalid email or password');
     }
   } catch (err) {
-    console.error('Connection failed:', err);
+    console.error('Error al iniciar sesión:', err.message);
     res.status(500).send('Server error');
   }
 });
+
 
 
 
