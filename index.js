@@ -65,6 +65,45 @@ app.post('/api/v1/ingresar', async (req, res) => {
   }
 });
 
+//Register
+app.post('/api/v1/registrar', async (req, res) => {
+  const { nombre, correo, password, rol } = req.body;
+
+  if (!nombre || !correo || !password || !rol) {
+    return res.status(400).send('Todos los campos son obligatorios.');
+  }
+
+  try {
+    const pool = await sql.connect(config);
+
+    // Verificar si el correo ya está registrado
+    const existingUser = await pool.request()
+        .input('correo', sql.VarChar, correo)
+        .query('SELECT * FROM Trabajadores WHERE correo = @correo');
+
+    if (existingUser.recordset.length > 0) {
+      return res.status(400).send('El correo ya está registrado.');
+    }
+
+    // Encriptar la contraseña
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Insertar el nuevo usuario en la base de datos
+    await pool.request()
+        .input('nombre', sql.VarChar, nombre)
+        .input('correo', sql.VarChar, correo)
+        .input('contraseña', sql.VarChar, hashedPassword)
+        .input('rol', sql.VarChar, rol)
+        .input('fecha_creacion', sql.DateTime, new Date())
+        .input('estado', sql.VarChar, 'activo')
+        .query('INSERT INTO Trabajadores (nombre, correo, contraseña, rol, fecha_creacion, estado) VALUES (@nombre, @correo, @contraseña, @rol, @fecha_creacion, @estado)');
+
+    res.status(201).send('Usuario registrado correctamente.');
+  } catch (err) {
+    console.error('Error al registrar usuario:', err.message);
+    res.status(500).send('Error al registrar usuario.');
+  }
+});
 
 
 
