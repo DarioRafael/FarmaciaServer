@@ -20,10 +20,10 @@ const config = {
 };
 
 const allowedOrigins = [
-  'https://moderna-shop-dch54tpat-dariorafaels-projects.vercel.app',
-  'https://moderna-shop-app.vercel.app',
-  'https://moderna-shop-app.vercel.app/#/login',
-  'https://moderna-shop-app.vercel.app/login'
+  'https://modelo-shop-dch54tpat-dariorafaels-projects.vercel.app',
+  'https://modelo-shop-app.vercel.app',
+  'https://modelo-shop-app.vercel.app/#/login',
+  'https://modelo-shop-app.vercel.app/login'
 ];
 
 app.use(cors({
