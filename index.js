@@ -51,7 +51,15 @@ app.post('/api/v1/ingresar', async (req, res) => {
             const match = await bcrypt.compare(password, user.contraseña);
 
             if (match) {
-                res.status(200).send('Login successful');
+                res.status(200).json({
+                    message: 'Login successful',
+                    user: {
+                        id: user.id,
+                        nombre: user.nombre,
+                        correo: user.correo,
+                        rol: user.rol, // Devuelve el rol
+                    },
+                });
             } else {
                 res.status(401).send('Invalid email or password');
             }
@@ -63,6 +71,25 @@ app.post('/api/v1/ingresar', async (req, res) => {
         res.status(500).send('Server error');
     }
 });
+
+const authorizeRole = (roles) => {
+    return (req, res, next) => {
+        const userRole = req.user.rol; // Asegúrate de que el rol del usuario esté disponible en el req.user
+
+        if (roles.includes(userRole)) {
+            return next();
+        } else {
+            return res.status(403).send('No tienes permisos para acceder a esta ruta.');
+        }
+    };
+};
+
+// Por ejemplo, si tienes una ruta que solo debe ser accesible por administradores
+app.get('/api/v1/admin', authorizeRole(['admin']), (req, res) => {
+    res.status(200).send('Acceso a administrador concedido.');
+});
+
+
 
 //Register
 app.post('/api/v1/registrar', async (req, res) => {
