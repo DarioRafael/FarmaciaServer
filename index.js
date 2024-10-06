@@ -145,6 +145,28 @@ app.get('/api/v1/trabajadores', async (req, res) => {
     }
 });
 
+// Endpoint para eliminar un trabajador
+app.delete('/api/v1/trabajadores/:id/eliminar', async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const pool = await sql.connect(config);
+        const result = await pool.request()
+            .input('id', sql.Int, id)
+            .query('DELETE FROM Trabajadores WHERE id = @id');
+
+        if (result.rowsAffected[0] > 0) {
+            res.status(200).send('Trabajador eliminado exitosamente.');
+        } else {
+            res.status(404).send('Trabajador no encontrado.');
+        }
+    } catch (err) {
+        console.error('Error al eliminar trabajador:', err);
+        res.status(500).send('Error del servidor al eliminar trabajador.');
+    }
+});
+
+
 
 app.delete('/api/v1/trabajadores/:id', async (req, res) => {
     try {
