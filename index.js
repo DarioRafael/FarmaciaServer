@@ -37,7 +37,7 @@ app.use(cors({
 app.use(express.json());
 
 app.post('/api/v1/ingresar', async (req, res) => {
-    const {email, password} = req.body;
+    const { email, password } = req.body;
 
     try {
         const pool = await sql.connect(config);
@@ -48,6 +48,12 @@ app.post('/api/v1/ingresar', async (req, res) => {
 
         if (result.recordset.length > 0) {
             const user = result.recordset[0];
+
+            // Verificar el estado del usuario
+            if (user.estado !== 'activo') {
+                return res.status(403).send('Acceso denegado: el usuario está inactivo.');
+            }
+
             const match = await bcrypt.compare(password, user.contraseña);
 
             if (match) {
@@ -71,6 +77,7 @@ app.post('/api/v1/ingresar', async (req, res) => {
         res.status(500).send('Server error');
     }
 });
+
 
 const authorizeRole = (roles) => {
     return (req, res, next) => {
