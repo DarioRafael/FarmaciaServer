@@ -132,19 +132,31 @@ app.post('/api/v1/registrar', async (req, res) => {
 });
 
 
-// Nueva ruta para obtener todos los trabajadores
 app.get('/api/v1/trabajadores', async (req, res) => {
-    console.log('Petición para obtener todos los trabajadores recibida');
-
     try {
         const pool = await sql.connect(config);
-        const request = pool.request();
-        const result = await request.query('SELECT id, nombre, correo FROM Trabajadores');
+        const result = await pool.request()
+            .query('SELECT id, nombre, correo, rol, fecha_creacion, estado FROM Trabajadores');
 
         res.status(200).json(result.recordset);
     } catch (err) {
-        console.error('Error al obtener los trabajadores:', err);
-        res.status(500).send('Server error');
+        console.error('Error al obtener trabajadores:', err);
+        res.status(500).send('Error del servidor al obtener trabajadores');
+    }
+});
+
+
+app.delete('/api/v1/trabajadores/:id', async (req, res) => {
+    try {
+        const pool = await sql.connect(config);
+        await pool.request()
+            .input('id', sql.Int, req.params.id)
+            .query('UPDATE Trabajadores SET estado = \'inactivo\' WHERE id = @id');
+
+        res.status(200).send('Trabajador desactivado exitosamente');
+    } catch (err) {
+        console.error('Error al desactivar trabajador:', err);
+        res.status(500).send('Error del servidor al desactivar trabajador');
     }
 });
 
