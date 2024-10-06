@@ -160,6 +160,35 @@ app.delete('/api/v1/trabajadores/:id', async (req, res) => {
     }
 });
 
+// Endpoint para actualizar el estado de un trabajador
+app.patch('/api/v1/trabajadores/:id/estado', async (req, res) => {
+    const { id } = req.params;
+    const { estado } = req.body;
+
+    // Validar que 'estado' esté presente y sea 'activo' o 'inactivo'
+    if (!estado || !['activo', 'inactivo'].includes(estado.toLowerCase())) {
+        return res.status(400).send("Estado inválido. Debe ser 'activo' o 'inactivo'.");
+    }
+
+    try {
+        const pool = await sql.connect(config);
+        const result = await pool.request()
+            .input('id', sql.Int, id)
+            .input('estado', sql.VarChar, estado.toLowerCase())
+            .query('UPDATE Trabajadores SET estado = @estado WHERE id = @id');
+
+        if (result.rowsAffected[0] > 0) {
+            res.status(200).json({ message: `Estado del trabajador actualizado a '${estado}'.` });
+        } else {
+            res.status(404).send('Trabajador no encontrado.');
+        }
+    } catch (err) {
+        console.error('Error al actualizar estado del trabajador:', err);
+        res.status(500).send('Error del servidor al actualizar estado del trabajador.');
+    }
+});
+
+
 
 app.post('/api/v1/actualizar-contrasenas', async (req, res) => {
     try {
