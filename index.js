@@ -217,7 +217,9 @@ app.patch('/api/v1/trabajadores/:id/estado', async (req, res) => {
     }
 });
 
-
+app.get('/api/v1/keepalive', (req, res) => {
+    res.status(200).send('Server is alive!');
+});
 
 app.post('/api/v1/actualizar-contrasenas', async (req, res) => {
     try {
