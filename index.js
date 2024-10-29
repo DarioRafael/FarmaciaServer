@@ -26,7 +26,7 @@ const allowedOrigins = [
     'https://modelo-shop-app-git-main-dariorafaels-projects.vercel.app/',
     /^http:\/\/localhost:\d+$/ // Acepta cualquier puerto en localhost
 ];
-
+//
 app.use(cors({
     origin: function (origin, callback) {
         if (!origin || allowedOrigins.some(o => typeof o === 'string' ? o === origin : o.test(origin))) {
