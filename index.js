@@ -18,16 +18,24 @@ const config = {
     },
 };
 
-const allowedOrigins = [
-    'https://modelo-shop-dch54tpat-dariorafaels-projects.vercel.app',
-    'https://modelo-shop-app.vercel.app',
-    'https://modelo-shop-app.vercel.app/#/login',
-    'https://modelo-shop-app.vercel.app/login',
-    'https://modelo-shop-app-git-main-dariorafaels-projects.vercel.app/'
-];
-
 app.use(cors({
-    origin: allowedOrigins,
+    origin: (origin, callback) => {
+        // Lista de orígenes permitidos exactos
+        const allowedOrigins = [
+            'https://modelo-shop-dch54tpat-dariorafaels-projects.vercel.app',
+            'https://modelo-shop-app.vercel.app',
+            'https://modelo-shop-app.vercel.app/#/login',
+            'https://modelo-shop-app.vercel.app/login',
+            'https://modelo-shop-app-git-main-dariorafaels-projects.vercel.app/'
+        ];
+
+        // Permitir cualquier puerto en localhost
+        if (allowedOrigins.includes(origin) || /http:\/\/localhost:\d+$/.test(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('No permitido por CORS'));
+        }
+    },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
