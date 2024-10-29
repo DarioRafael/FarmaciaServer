@@ -24,15 +24,22 @@ const allowedOrigins = [
     'https://modelo-shop-app.vercel.app/#/login',
     'https://modelo-shop-app.vercel.app/login',
     'https://modelo-shop-app-git-main-dariorafaels-projects.vercel.app/',
+    /^http:\/\/localhost:\d+$/ // Acepta cualquier puerto en localhost
 ];
 
-
 app.use(cors({
-    origin: allowedOrigins,
+    origin: function (origin, callback) {
+        if (!origin || allowedOrigins.some(o => typeof o === 'string' ? o === origin : o.test(origin))) {
+            callback(null, true);
+        } else {
+            callback(new Error('Origen no permitido por CORS'));
+        }
+    },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
 }));
+
 
 
 app.use(express.json());
