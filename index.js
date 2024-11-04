@@ -275,6 +275,20 @@ app.post('/api/v1/actualizar-contrasenas', async (req, res) => {
     }
 });
 
+app.get('/api/v1/categorias', async (req, res) => {
+    try {
+        const pool = await sql.connect(config);
+        const result = await pool.request()
+            .query('SELECT C.Nombre FROM Categoria C;');
+
+        res.status(200).json(result.recordset);
+    } catch (err) {
+        console.error('Error al obtener categorias:', err);
+        res.status(500).send('Error del servidor al obtener categorias');
+    }
+});
+
+
 
 // Añadir esta línea para iniciar el servidor
 app.listen(port, () => {
