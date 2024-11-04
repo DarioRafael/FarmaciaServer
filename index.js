@@ -288,18 +288,54 @@ app.get('/api/v1/categorias', async (req, res) => {
     }
 });
 
-app.get('/api/v1/productos', async (req, res) => {
+app.delete('/api/v1/productos/:id', async (req, res) => {
+    const productId = req.params.id; // Obtener el ID del producto desde la URL
+
     try {
         const pool = await sql.connect(config);
         const result = await pool.request()
-            .query('SELECT P.nombre,categoria = (SELECT C.Nombre FROM Categoria C WHERE P.IDCategoria = C.IDCategoria),P.Stock,P.Precio FROM Productos P;');
+            .input('IDProductos', sql.Int, productId) // Agregar el ID del producto como parámetro
+            .query('DELETE FROM Productos WHERE IDProductos = @IDProductos');
 
-        res.status(200).json(result.recordset);
+        if (result.rowsAffected[0] === 0) {
+            return res.status(404).send('Producto no encontrado');
+        }
+
+        res.status(200).send('Producto eliminado correctamente');
     } catch (err) {
-        console.error('Error al obtener productos:', err);
-        res.status(500).send('Error del servidor al obtener productos');
+        console.error('Error al eliminar producto:', err);
+        res.status(500).send('Error del servidor al eliminar producto');
     }
 });
+
+
+app.put('/api/v1/productos/:id', async (req, res) => {
+    const productId = req.params.id; // Obtener el ID del producto desde la URL
+    const { nombre, stock, precio, descripcion } = req.body; // Obtener los datos del cuerpo de la solicitud
+
+    try {
+        const pool = await sql.connect(config);
+        const result = await pool.request()
+            .input('IDProductos', sql.Int, productId) // Agregar el ID del producto como parámetro
+            .input('Nombre', sql.VarChar, nombre) // Agregar el nombre como parámetro
+            .input('Stock', sql.Int, stock) // Agregar el stock como parámetro
+            .input('Precio', sql.Decimal(10, 2), precio) // Agregar el precio como parámetro
+            .input('Descripcion', sql.VarChar, descripcion) // Agregar la descripción como parámetro
+            .query('UPDATE Productos SET Nombre = @Nombre, Stock = @Stock, Precio = @Precio, Descripcion = @Descripcion WHERE IDProductos = @IDProductos');
+
+        if (result.rowsAffected[0] === 0) {
+            return res.status(404).send('Producto no encontrado');
+        }
+
+        res.status(200).send('Producto actualizado correctamente');
+    } catch (err) {
+        console.error('Error al actualizar producto:', err);
+        res.status(500).send('Error del servidor al actualizar producto');
+    }
+});
+
+
+
 
 
 
