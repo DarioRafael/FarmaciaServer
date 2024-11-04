@@ -324,6 +324,38 @@ app.delete('/api/v1/productos/:id', async (req, res) => {
     }
 });
 
+app.post('/api/v1/productosinsert', async (req, res) => {
+    const { nombre, categoria, stock, precio } = req.body;
+
+    try {
+        const pool = await sql.connect(config);
+
+        // Get the category ID based on the category name
+        const categoryResult = await pool.request()
+            .input('Nombre', sql.VarChar, categoria)
+            .query('SELECT IDCategoria FROM Categoria WHERE Nombre = @Nombre');
+
+        if (categoryResult.recordset.length === 0) {
+            return res.status(400).send('Categoría no encontrada');
+        }
+
+        const idCategoria = categoryResult.recordset[0].IDCategoria;
+
+        // Insert the new product
+        await pool.request()
+            .input('Nombre', sql.VarChar, nombre)
+            .input('IDCategoria', sql.Int, idCategoria)
+            .input('Stock', sql.Int, stock)
+            .input('Precio', sql.Decimal(18, 2), precio)
+            .query('INSERT INTO Productos (Nombre, IDCategoria, Stock, Precio) VALUES (@Nombre, @IDCategoria, @Stock, @Precio)');
+
+        res.status(201).send('Producto añadido exitosamente');
+    } catch (err) {
+        console.error('Error al añadir producto:', err);
+        res.status(500).send('Error del servidor al añadir producto');
+    }
+});
+
 
 app.put('/api/v1/productos/:id', async (req, res) => {
     const productId = req.params.id; // Obtener el ID del producto desde la URL
