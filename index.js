@@ -322,7 +322,6 @@ app.post('/api/v1/productosinsert', async (req, res) => {
 
         const idCategoria = categoryResult.recordset[0].IDCategoria;
 
-        // Insert the new product
         await pool.request()
             .input('Nombre', sql.VarChar, nombre)
             .input('IDCategoria', sql.Int, idCategoria)
@@ -359,7 +358,42 @@ app.delete('/api/v1/productos/:id', async (req, res) => {
 
 
 
+app.put('/api/v1/productos/:id', async (req, res) => {
+    const { id } = req.params;
+    const { nombre, categoria, stock, precio } = req.body;
 
+    try {
+        const pool = await sql.connect(config);
+
+        // Get the category ID based on the category name
+        const categoryResult = await pool.request()
+            .input('Nombre', sql.VarChar, categoria)
+            .query('SELECT IDCategoria FROM Categoria WHERE Nombre = @Nombre');
+
+        if (categoryResult.recordset.length === 0) {
+            return res.status(400).send('Categoría no encontrada');
+        }
+
+        const idCategoria = categoryResult.recordset[0].IDCategoria;
+
+        const result = await pool.request()
+            .input('ID', sql.Int, id)
+            .input('Nombre', sql.VarChar, nombre)
+            .input('IDCategoria', sql.Int, idCategoria)
+            .input('Stock', sql.Int, stock)
+            .input('Precio', sql.Decimal(18, 2), precio)
+            .query('UPDATE Productos SET Nombre = @Nombre, IDCategoria = @IDCategoria, Stock = @Stock, Precio = @Precio WHERE IDProductos = @ID');
+
+        if (result.rowsAffected[0] > 0) {
+            res.status(200).send('Producto actualizado exitosamente.');
+        } else {
+            res.status(404).send('Producto no encontrado.');
+        }
+    } catch (err) {
+        console.error('Error al actualizar producto:', err);
+        res.status(500).send('Error del servidor al actualizar producto.');
+    }
+});
 
 
 
