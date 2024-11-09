@@ -344,7 +344,7 @@ app.delete('/api/v1/productos/:id', async (req, res) => {
         const pool = await sql.connect(config);
         const result = await pool.request()
             .input('ID', sql.Int, id)
-            .query('DELETE FROM Productos WHERE ID = @ID');
+            .query('DELETE FROM Productos WHERE IDProductos = @ID');
 
         if (result.rowsAffected[0] > 0) {
             res.status(200).send('Producto eliminado exitosamente.');
