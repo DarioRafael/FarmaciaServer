@@ -337,6 +337,26 @@ app.post('/api/v1/productosinsert', async (req, res) => {
     }
 });
 
+app.delete('/api/v1/productos/:id', async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const pool = await sql.connect(config);
+        const result = await pool.request()
+            .input('ID', sql.Int, id)
+            .query('DELETE FROM Productos WHERE ID = @ID');
+
+        if (result.rowsAffected[0] > 0) {
+            res.status(200).send('Producto eliminado exitosamente.');
+        } else {
+            res.status(404).send('Producto no encontrado.');
+        }
+    } catch (err) {
+        console.error('Error al eliminar producto:', err);
+        res.status(500).send('Error del servidor al eliminar producto.');
+    }
+});
+
 
 
 
