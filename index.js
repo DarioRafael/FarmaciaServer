@@ -294,7 +294,7 @@ app.get('/api/v1/productos', async (req, res) => {
     try {
         const pool = await sql.connect(config);
         const result = await pool.request()
-            .query('SELECT P.IDProductos,P.nombre,categoria = (SELECT C.Nombre FROM Categoria C WHERE P.IDCategoria = C.IDCategoria),P.Stock,P.Precio FROM Productos P;');
+            .query('SELECT P.IDProductos,P.Nombre,Categoria = (SELECT C.Nombre FROM Categoria C WHERE P.IDCategoria = C.IDCategoria),P.Stock,P.Precio FROM Productos P;');
 
         res.status(200).json(result.recordset);
     } catch (err) {
