@@ -279,7 +279,7 @@ app.get('/api/v1/categorias', async (req, res) => {
     try {
         const pool = await sql.connect(config);
         const result = await pool.request()
-            .query('SELECT C.Nombre FROM Categoria C;');
+            .query('SELECT C.IDCategoria,C.Nombre FROM Categoria C;');
 
         res.status(200).json(result.recordset);
     } catch (err) {
@@ -287,7 +287,6 @@ app.get('/api/v1/categorias', async (req, res) => {
         res.status(500).send('Error del servidor al obtener categorias');
     }
 });
-
 
 
 app.get('/api/v1/productos', async (req, res) => {
@@ -302,7 +301,6 @@ app.get('/api/v1/productos', async (req, res) => {
         res.status(500).send('Error del servidor al obtener productos');
     }
 });
-
 
 
 app.post('/api/v1/productosinsert', async (req, res) => {
@@ -355,7 +353,6 @@ app.delete('/api/v1/productos/:id', async (req, res) => {
         res.status(500).send('Error del servidor al eliminar producto.');
     }
 });
-
 
 
 app.put('/api/v1/productos/:id', async (req, res) => {
