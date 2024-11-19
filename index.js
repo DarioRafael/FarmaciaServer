@@ -398,10 +398,12 @@ app.get('/api/v1/saldo', async (req, res) => {
         const result = await pool.request()
             .query(`
                 SELECT
-                    d.id,
-                    d.saldo,
+                    d.saldo AS baseSaldo,
                     (SELECT ISNULL(SUM(monto), 0) FROM Transaccion WHERE tipo = 'ingreso') AS totalIngresos,
-                    (SELECT ISNULL(SUM(monto), 0) FROM Transaccion WHERE tipo = 'egreso') AS totalEgresos
+                    (SELECT ISNULL(SUM(monto), 0) FROM Transaccion WHERE tipo = 'egreso') AS totalEgresos,
+                    d.saldo +
+                    (SELECT ISNULL(SUM(monto), 0) FROM Transaccion WHERE tipo = 'ingreso') -
+                    (SELECT ISNULL(SUM(monto), 0) FROM Transaccion WHERE tipo = 'egreso') AS saldoFinal
                 FROM DineroDisponible d
                 WHERE ID = 1;
             `);
