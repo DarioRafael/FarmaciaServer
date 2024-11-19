@@ -468,11 +468,11 @@ app.post('/api/v1/transaccionesinsert', async (req, res) => {
         if (tipo === 'ingreso') {
             await pool.request()
                 .input('Monto', sql.Decimal(10, 2), monto)
-                .query('UPDATE DineroDisponible SET ingresos = ingresos + @Monto, saldo = saldo - egresos WHERE ID = 1');
+                .query('UPDATE DineroDisponible SET ingresos = ingresos + @Monto, saldo = saldo + @Monto WHERE ID = 1');
         } else if (tipo === 'egreso') {
             await pool.request()
                 .input('Monto', sql.Decimal(10, 2), monto)
-                .query('UPDATE DineroDisponible SET egresos = egresos + @Monto, saldo = saldo - egresos WHERE ID = 1');
+                .query('UPDATE DineroDisponible SET egresos = egresos + @Monto, saldo = saldo - @Monto WHERE ID = 1');
         }
 
         res.status(201).send('Transacción añadida exitosamente');
@@ -481,6 +481,7 @@ app.post('/api/v1/transaccionesinsert', async (req, res) => {
         res.status(500).send('Error del servidor al añadir transacción');
     }
 });
+
 
 
 
