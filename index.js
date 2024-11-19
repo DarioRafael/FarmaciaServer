@@ -396,7 +396,7 @@ app.get('/api/v1/saldo', async (req, res) => {
     try {
         const pool = await sql.connect(config);
         const result = await pool.request()
-            .query('SELECT d.id,d.saldo FROM DineroDisponible d;');
+            .query('SELECT d.id,d.saldo FROM DineroDisponible d WHERE id = 1;');
 
         res.status(200).json(result.recordset);
     } catch (err) {
