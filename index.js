@@ -396,15 +396,69 @@ app.get('/api/v1/saldo', async (req, res) => {
     try {
         const pool = await sql.connect(config);
         const result = await pool.request()
-            .query('SELECT d.id,d.saldo,d.ingresos,d.egresos,d.fecha FROM DineroDisponible d WHERE ID = 1;');
+            .query(`
+                SELECT 
+                    d.id,
+                    d.saldo,
+                    d.ingresos,
+                    d.egresos,
+                    d.fecha,
+                    (SELECT SUM(monto) FROM Transaccion WHERE tipo = 'ingreso') AS totalIngresos,
+                    (SELECT SUM(monto) FROM Transaccion WHERE tipo = 'egreso') AS totalEgresos
+                FROM DineroDisponible d 
+                WHERE ID = 1;
+            `);
 
-        res.status(200).json(result.recordset);
+        // Ajusta el saldo con los ingresos y egresos obtenidos
+        const saldo = result.recordset[0];
+        saldo.ingresos = saldo.totalIngresos || 0;
+        saldo.egresos = saldo.totalEgresos || 0;
+        saldo.saldo = saldo.ingresos - saldo.egresos;
+
+        res.status(200).json(saldo);
     } catch (err) {
         console.error('Error al obtener el saldo:', err);
         res.status(500).send('Error del servidor al obtener el saldo');
     }
 });
 
+
+app.post('/api/v1/transaccionesinsert', async (req, res) => {
+    const { descripcion, monto, tipo, fecha } = req.body;
+
+    try {
+        const pool = await sql.connect(config);
+
+        // Validar si el tipo es 'ingreso' o 'egreso'
+        if (!['ingreso', 'egreso'].includes(tipo)) {
+            return res.status(400).send('Tipo de transacción inválido');
+        }
+
+        // Inserta la nueva transacción
+        await pool.request()
+            .input('Descripcion', sql.VarChar(255), descripcion)
+            .input('Monto', sql.Decimal(10, 2), monto)
+            .input('Tipo', sql.VarChar(10), tipo)
+            .input('Fecha', sql.DateTime, fecha)
+            .query('INSERT INTO Transaccion (descripcion, monto, tipo, fecha) VALUES (@Descripcion, @Monto, @Tipo, @Fecha)');
+
+        // Actualiza los ingresos, egresos y saldo
+        if (tipo === 'ingreso') {
+            await pool.request()
+                .input('Monto', sql.Decimal(10, 2), monto)
+                .query('UPDATE DineroDisponible SET ingresos = ingresos + @Monto, saldo = ingresos - egresos WHERE ID = 1');
+        } else if (tipo === 'egreso') {
+            await pool.request()
+                .input('Monto', sql.Decimal(10, 2), monto)
+                .query('UPDATE DineroDisponible SET egresos = egresos + @Monto, saldo = ingresos - egresos WHERE ID = 1');
+        }
+
+        res.status(201).send('Transacción añadida exitosamente');
+    } catch (err) {
+        console.error('Error al añadir transacción:', err);
+        res.status(500).send('Error del servidor al añadir transacción');
+    }
+});
 
 
 
