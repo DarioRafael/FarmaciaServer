@@ -430,13 +430,13 @@ app.get('/api/v1/transacciones', async (req, res) => {
         // Obtener todas las transacciones
         const result = await pool.request().query('SELECT * FROM Transaccion');
 
-        // Obtener el estado actual de DineroDisponible (ingresos, egresos, saldo)
-        const dineroDisponible = await pool.request().query('SELECT * FROM DineroDisponible WHERE ID = 1');
+        // // Obtener el estado actual de DineroDisponible (ingresos, egresos, saldo)
+        // const dineroDisponible = await pool.request().query('SELECT * FROM DineroDisponible WHERE ID = 1');
 
         // Responder con las transacciones y el estado de DineroDisponible
         res.status(200).json({
             transacciones: result.recordset,
-            dineroDisponible: dineroDisponible.recordset[0]
+            // dineroDisponible: dineroDisponible.recordset[0]
         });
     } catch (err) {
         console.error('Error al recuperar transacciones:', err);
