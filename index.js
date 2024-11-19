@@ -397,23 +397,19 @@ app.get('/api/v1/saldo', async (req, res) => {
         const pool = await sql.connect(config);
         const result = await pool.request()
             .query(`
-                SELECT 
+                SELECT
                     d.id,
-                    d.saldo,
-                    d.ingresos,
-                    d.egresos,
-                    d.fecha,
                     (SELECT SUM(monto) FROM Transaccion WHERE tipo = 'ingreso') AS totalIngresos,
                     (SELECT SUM(monto) FROM Transaccion WHERE tipo = 'egreso') AS totalEgresos
-                FROM DineroDisponible d 
+                FROM DineroDisponible d
                 WHERE ID = 1;
             `);
 
-        // Ajusta el saldo con los ingresos y egresos obtenidos
+        // Calcula el saldo como la diferencia entre ingresos y egresos
         const saldo = result.recordset[0];
-        saldo.ingresos = saldo.totalIngresos || 0;
-        saldo.egresos = saldo.totalEgresos || 0;
-        saldo.saldo = saldo.ingresos - saldo.egresos;
+        saldo.totalIngresos = saldo.totalIngresos || 0;
+        saldo.totalEgresos = saldo.totalEgresos || 0;
+        saldo.saldo = saldo.totalIngresos - saldo.totalEgresos;
 
         res.status(200).json(saldo);
     } catch (err) {
@@ -421,6 +417,7 @@ app.get('/api/v1/saldo', async (req, res) => {
         res.status(500).send('Error del servidor al obtener el saldo');
     }
 });
+
 
 
 app.post('/api/v1/transaccionesinsert', async (req, res) => {
@@ -442,7 +439,7 @@ app.post('/api/v1/transaccionesinsert', async (req, res) => {
             .input('Fecha', sql.DateTime, fecha)
             .query('INSERT INTO Transaccion (descripcion, monto, tipo, fecha) VALUES (@Descripcion, @Monto, @Tipo, @Fecha)');
 
-        // Actualiza los ingresos, egresos y saldo
+        // Actualiza los ingresos o egresos y el saldo
         if (tipo === 'ingreso') {
             await pool.request()
                 .input('Monto', sql.Decimal(10, 2), monto)
@@ -459,6 +456,7 @@ app.post('/api/v1/transaccionesinsert', async (req, res) => {
         res.status(500).send('Error del servidor al añadir transacción');
     }
 });
+
 
 
 
