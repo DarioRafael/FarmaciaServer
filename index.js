@@ -396,7 +396,7 @@ app.get('/api/v1/saldo', async (req, res) => {
     try {
         const pool = await sql.connect(config);
         const result = await pool.request()
-            .query('SELECT d.id,d.saldo FROM DineroDisponible d WHERE id = 1;');
+            .query('SELECT d.id,d.saldo,d.ingresos,d.egresos,d.fecha FROM DineroDisponible d WHERE ID = 1;');
 
         res.status(200).json(result.recordset);
     } catch (err) {
@@ -406,10 +406,11 @@ app.get('/api/v1/saldo', async (req, res) => {
 });
 
 
+
+
 // Añadir esta línea para iniciar el servidor
 app.listen(port, () => {
     console.log(`Servidor en ejecución en el puerto ${port}`);
 });
-
 
 module.exports = app;
