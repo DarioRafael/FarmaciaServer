@@ -399,17 +399,18 @@ app.get('/api/v1/saldo', async (req, res) => {
             .query(`
                 SELECT
                     d.id,
-                    (SELECT SUM(monto) FROM Transaccion WHERE tipo = 'ingreso') AS totalIngresos,
-                    (SELECT SUM(monto) FROM Transaccion WHERE tipo = 'egreso') AS totalEgresos
+                    d.saldo,  
+                    (SELECT ISNULL(SUM(monto), 0) FROM Transaccion WHERE tipo = 'ingreso') AS totalIngresos,
+                    (SELECT ISNULL(SUM(monto), 0) FROM Transaccion WHERE tipo = 'egreso') AS totalEgresos
                 FROM DineroDisponible d
                 WHERE ID = 1;
             `);
 
-        // Calcula el saldo como la diferencia entre ingresos y egresos
+        // Calcula el saldo final sumando los ingresos y restando los egresos
         const saldo = result.recordset[0];
         saldo.totalIngresos = saldo.totalIngresos || 0;
         saldo.totalEgresos = saldo.totalEgresos || 0;
-        saldo.saldo = saldo.totalIngresos - saldo.totalEgresos;
+        saldo.saldoFinal = saldo.saldo + saldo.totalIngresos - saldo.totalEgresos; // Calcula el saldo final
 
         res.status(200).json(saldo);
     } catch (err) {
@@ -417,6 +418,7 @@ app.get('/api/v1/saldo', async (req, res) => {
         res.status(500).send('Error del servidor al obtener el saldo');
     }
 });
+
 
 
 
