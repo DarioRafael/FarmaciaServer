@@ -482,7 +482,27 @@ app.post('/api/v1/transaccionesinsert', async (req, res) => {
     }
 });
 
+app.get('/api/v1/ventas', async (req, res) => {
+    try {
+        const pool = await sql.connect(config);
 
+        // Obtener todas las transacciones
+        const result = await pool.request().query('SELECT  v.IDVenta,\n' +
+            '        Producto =(SELECT p.Nombre FROM Productos p WHERE p.IDProductos = v.IDProducto),\n' +
+            '        v.Stock,\n' +
+            '        v.PrecioUnitario,\n' +
+            '        v.PrecioSubtotal,\n' +
+            '        v.FechaVenta\n' +
+            '    FROM VentasProductos V\n');
+
+        res.status(200).json({
+            ventas: result.recordset,
+        });
+    } catch (err) {
+        console.error('Error al recuperar ventas:', err);
+        res.status(500).send('Error del servidor al recuperar ventas');
+    }
+});
 
 
 
