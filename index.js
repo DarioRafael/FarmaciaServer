@@ -486,14 +486,17 @@ app.get('/api/v1/ventas', async (req, res) => {
     try {
         const pool = await sql.connect(config);
 
-        // Obtener todas las transacciones
-        const result = await pool.request().query('SELECT  v.IDVenta,\n' +
-            '        Producto =(SELECT p.Nombre FROM Productos p WHERE p.IDProductos = v.IDProducto),\n' +
-            '        v.Stock,\n' +
-            '        v.PrecioUnitario,\n' +
-            '        v.PrecioSubtotal,\n' +
-            '        v.FechaVenta\n' +
-            '    FROM VentasProductos V\n');
+        // Obtener ventas con la fecha formateada
+        const result = await pool.request().query(`
+            SELECT  
+                v.IDVenta,
+                Producto = (SELECT p.Nombre FROM Productos p WHERE p.IDProductos = v.IDProducto),
+                v.Stock,
+                v.PrecioUnitario,
+                v.PrecioSubtotal,
+                FechaVenta = CONVERT(VARCHAR, v.FechaVenta, 23) -- Formato YYYY-MM-DD
+            FROM VentasProductos v
+        `);
 
         res.status(200).json({
             ventas: result.recordset,
