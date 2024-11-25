@@ -481,144 +481,101 @@ app.post('/api/v1/transaccionesinsert', async (req, res) => {
         res.status(500).send('Error del servidor al añadir transacción');
     }
 });
-const express = require('express');
-const sql = require('mssql');
 
-// Obtener ventas
 app.get('/api/v1/ventas', async (req, res) => {
     try {
         const pool = await sql.connect(config);
 
+        // Obtener ventas con la fecha formateada
         const result = await pool.request().query(`
             SELECT  
                 v.IDVenta,
-                p.Nombre as Producto,
+                Producto = (SELECT p.Nombre FROM Productos p WHERE p.IDProductos = v.IDProducto),
                 v.Stock,
                 v.PrecioUnitario,
                 v.PrecioSubtotal,
-                FechaVenta = CONVERT(VARCHAR, v.FechaVenta, 23)
+                FechaVenta = CONVERT(VARCHAR, v.FechaVenta, 23) -- Formato YYYY-MM-DD
             FROM VentasProductos v
-            INNER JOIN Productos p ON p.IDProductos = v.IDProducto
-            ORDER BY v.FechaVenta DESC
         `);
 
         res.status(200).json({
-            success: true,
             ventas: result.recordset,
         });
     } catch (err) {
         console.error('Error al recuperar ventas:', err);
-        res.status(500).json({
-            success: false,
-            error: 'Error del servidor al recuperar ventas'
-        });
+        res.status(500).send('Error del servidor al recuperar ventas');
     }
 });
 
-// Crear venta
+
 app.post('/api/v1/ventas', async (req, res) => {
     try {
+        // Extraemos la información de la solicitud
         const { FechaVenta, productos } = req.body;
 
-        // Validaciones básicas
-        if (!productos || !Array.isArray(productos) || productos.length === 0) {
-            return res.status(400).json({
-                success: false,
-                error: 'Debe incluir al menos un producto en la venta'
-            });
+        // Validar que existan productos
+        if (!productos || productos.length === 0) {
+            return res.status(400).send('Debe incluir al menos un producto en la venta.');
         }
 
-        if (!FechaVenta || isNaN(new Date(FechaVenta).getTime())) {
-            return res.status(400).json({
-                success: false,
-                error: 'Fecha de venta inválida'
-            });
-        }
-
+        // Conectarse a la base de datos
         const pool = await sql.connect(config);
+
+        // Iniciar una transacción para asegurar que todos los productos se guarden juntos
         const transaction = new sql.Transaction(pool);
         await transaction.begin();
 
         try {
-            // Verificar stock disponible y productos válidos
-            for (const producto of productos) {
-                const { IDProducto, Stock } = producto;
+            // Crear el IDVenta único
+            const ventaResult = await transaction.request()
+                .input('FechaVenta', sql.Date, FechaVenta)
+                .query(`
+                    INSERT INTO Ventas (FechaVenta)
+                    OUTPUT INSERTED.IDVenta
+                    VALUES (@FechaVenta);
+                `);
 
-                if (!IDProducto || !Stock || Stock <= 0) {
-                    throw new Error(`Datos inválidos para el producto ${IDProducto}`);
-                }
+            const IDVenta = ventaResult.recordset[0].IDVenta;
 
-                const stockResult = await transaction.request()
-                    .input('IDProducto', sql.Int, IDProducto)
-                    .query(`
-                        SELECT Stock, Precio 
-                        FROM Productos 
-                        WHERE IDProductos = @IDProducto
-                    `);
-
-                if (stockResult.recordset.length === 0) {
-                    throw new Error(`Producto ${IDProducto} no encontrado`);
-                }
-
-                const stockActual = stockResult.recordset[0].Stock;
-                if (stockActual < Stock) {
-                    throw new Error(`Stock insuficiente para el producto ${IDProducto}`);
-                }
-
-                // Agregar el precio actual del producto
-                producto.PrecioUnitario = stockResult.recordset[0].Precio;
-            }
-
-            // Insertar productos y actualizar stock
+            // Insertar los productos
             for (const producto of productos) {
                 const { IDProducto, Stock, PrecioUnitario } = producto;
+
+                // Calcular el subtotal
                 const PrecioSubtotal = Stock * PrecioUnitario;
 
-                // Insertar venta
                 await transaction.request()
+                    .input('IDVenta', sql.Int, IDVenta)
                     .input('IDProducto', sql.Int, IDProducto)
                     .input('Stock', sql.Int, Stock)
                     .input('PrecioUnitario', sql.Decimal(10, 2), PrecioUnitario)
                     .input('PrecioSubtotal', sql.Decimal(10, 2), PrecioSubtotal)
-                    .input('FechaVenta', sql.Date, new Date(FechaVenta))
                     .query(`
-                        INSERT INTO VentasProductos (
-                            IDProducto, Stock, PrecioUnitario,
-                            PrecioSubtotal, FechaVenta
-                        )
-                        VALUES (
-                                   @IDProducto, @Stock, @PrecioUnitario,
-                                   @PrecioSubtotal, @FechaVenta
-                               );
-
-                        UPDATE Productos
-                        SET Stock = Stock - @Stock
-                        WHERE IDProductos = @IDProducto;
+                        INSERT INTO VentasProductos (IDVenta, IDProducto, Stock, PrecioUnitario, PrecioSubtotal)
+                        VALUES (@IDVenta, @IDProducto, @Stock, @PrecioUnitario, @PrecioSubtotal);
                     `);
             }
 
+            // Confirmar la transacción
             await transaction.commit();
 
             res.status(201).json({
-                success: true,
-                message: 'Venta registrada exitosamente',
-                data: {
-                    FechaVenta,
-                    productos
-                }
+                message: 'Venta agregada exitosamente',
+                IDVenta,
+                FechaVenta,
+                productos
             });
         } catch (error) {
+            // Revertir la transacción en caso de error
             await transaction.rollback();
             throw error;
         }
     } catch (err) {
-        console.error('Error al procesar la venta:', err);
-        res.status(500).json({
-            success: false,
-            error: err.message || 'Error del servidor al procesar la venta'
-        });
+        console.error('Error al agregar venta:', err);
+        res.status(500).send('Error del servidor al agregar la venta.');
     }
 });
+
 
 
 // Añadir esta línea para iniciar el servidor
