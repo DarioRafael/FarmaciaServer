@@ -508,6 +508,75 @@ app.get('/api/v1/ventas', async (req, res) => {
 });
 
 
+app.post('/api/v1/ventas', async (req, res) => {
+    try {
+        // Extraemos la información de la solicitud
+        const { FechaVenta, productos } = req.body;
+
+        // Validar que existan productos
+        if (!productos || productos.length === 0) {
+            return res.status(400).send('Debe incluir al menos un producto en la venta.');
+        }
+
+        // Conectarse a la base de datos
+        const pool = await sql.connect(config);
+
+        // Iniciar una transacción para asegurar que todos los productos se guarden juntos
+        const transaction = new sql.Transaction(pool);
+        await transaction.begin();
+
+        try {
+            // Crear el IDVenta único
+            const ventaResult = await transaction.request()
+                .input('FechaVenta', sql.Date, FechaVenta)
+                .query(`
+                    INSERT INTO Ventas (FechaVenta)
+                    OUTPUT INSERTED.IDVenta
+                    VALUES (@FechaVenta);
+                `);
+
+            const IDVenta = ventaResult.recordset[0].IDVenta;
+
+            // Insertar los productos
+            for (const producto of productos) {
+                const { IDProducto, Stock, PrecioUnitario } = producto;
+
+                // Calcular el subtotal
+                const PrecioSubtotal = Stock * PrecioUnitario;
+
+                await transaction.request()
+                    .input('IDVenta', sql.Int, IDVenta)
+                    .input('IDProducto', sql.Int, IDProducto)
+                    .input('Stock', sql.Int, Stock)
+                    .input('PrecioUnitario', sql.Decimal(10, 2), PrecioUnitario)
+                    .input('PrecioSubtotal', sql.Decimal(10, 2), PrecioSubtotal)
+                    .query(`
+                        INSERT INTO VentasProductos (IDVenta, IDProducto, Stock, PrecioUnitario, PrecioSubtotal)
+                        VALUES (@IDVenta, @IDProducto, @Stock, @PrecioUnitario, @PrecioSubtotal);
+                    `);
+            }
+
+            // Confirmar la transacción
+            await transaction.commit();
+
+            res.status(201).json({
+                message: 'Venta agregada exitosamente',
+                IDVenta,
+                FechaVenta,
+                productos
+            });
+        } catch (error) {
+            // Revertir la transacción en caso de error
+            await transaction.rollback();
+            throw error;
+        }
+    } catch (err) {
+        console.error('Error al agregar venta:', err);
+        res.status(500).send('Error del servidor al agregar la venta.');
+    }
+});
+
+
 
 // Añadir esta línea para iniciar el servidor
 app.listen(port, () => {
