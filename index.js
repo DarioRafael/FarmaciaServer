@@ -507,75 +507,103 @@ app.get('/api/v1/ventas', async (req, res) => {
     }
 });
 
-
 app.post('/api/v1/ventas', async (req, res) => {
+    // Esperamos un array de productos vendidos
+    // [{ idProducto, cantidad, precioUnitario }]
+    const { productos, fechaVenta } = req.body;
+
+    if (!Array.isArray(productos) || productos.length === 0) {
+        return res.status(400).send('Debe proporcionar al menos un producto para la venta');
+    }
+
+    const pool = await sql.connect(config);
+    const transaction = new sql.Transaction(pool);
+
     try {
-        // Extraemos la información de la solicitud
-        const { FechaVenta, productos } = req.body;
-
-        // Validar que existan productos
-        if (!productos || productos.length === 0) {
-            return res.status(400).send('Debe incluir al menos un producto en la venta.');
-        }
-
-        // Conectarse a la base de datos
-        const pool = await sql.connect(config);
-
-        // Iniciar una transacción para asegurar que todos los productos se guarden juntos
-        const transaction = new sql.Transaction(pool);
         await transaction.begin();
 
-        try {
-            // Crear el IDVenta único
-            const ventaResult = await transaction.request()
-                .input('FechaVenta', sql.Date, FechaVenta)
-                .query(`
-                    INSERT INTO Ventas (FechaVenta)
-                    OUTPUT INSERTED.IDVenta
-                    VALUES (@FechaVenta);
-                `);
+        // Para cada producto en la venta
+        for (const producto of productos) {
+            const { idProducto, cantidad, precioUnitario } = producto;
 
-            const IDVenta = ventaResult.recordset[0].IDVenta;
+            // Verificar stock disponible
+            const stockResult = await new sql.Request(transaction)
+                .input('IDProducto', sql.Int, idProducto)
+                .query('SELECT Stock FROM Productos WHERE IDProductos = @IDProducto');
 
-            // Insertar los productos
-            for (const producto of productos) {
-                const { IDProducto, Stock, PrecioUnitario } = producto;
-
-                // Calcular el subtotal
-                const PrecioSubtotal = Stock * PrecioUnitario;
-
-                await transaction.request()
-                    .input('IDVenta', sql.Int, IDVenta)
-                    .input('IDProducto', sql.Int, IDProducto)
-                    .input('Stock', sql.Int, Stock)
-                    .input('PrecioUnitario', sql.Decimal(10, 2), PrecioUnitario)
-                    .input('PrecioSubtotal', sql.Decimal(10, 2), PrecioSubtotal)
-                    .query(`
-                        INSERT INTO VentasProductos (IDVenta, IDProducto, Stock, PrecioUnitario, PrecioSubtotal)
-                        VALUES (@IDVenta, @IDProducto, @Stock, @PrecioUnitario, @PrecioSubtotal);
-                    `);
+            if (stockResult.recordset.length === 0) {
+                throw new Error(`Producto con ID ${idProducto} no encontrado`);
             }
 
-            // Confirmar la transacción
-            await transaction.commit();
+            const stockDisponible = stockResult.recordset[0].Stock;
+            if (stockDisponible < cantidad) {
+                throw new Error(`Stock insuficiente para el producto ${idProducto}`);
+            }
 
-            res.status(201).json({
-                message: 'Venta agregada exitosamente',
-                IDVenta,
-                FechaVenta,
-                productos
-            });
-        } catch (error) {
-            // Revertir la transacción en caso de error
-            await transaction.rollback();
-            throw error;
+            // Calcular subtotal
+            const precioSubtotal = cantidad * precioUnitario;
+
+            // Insertar la venta
+            await new sql.Request(transaction)
+                .input('IDProducto', sql.Int, idProducto)
+                .input('Stock', sql.Int, cantidad)
+                .input('PrecioUnitario', sql.Decimal(10, 2), precioUnitario)
+                .input('PrecioSubtotal', sql.Decimal(10, 2), precioSubtotal)
+                .input('FechaVenta', sql.Date, fechaVenta || new Date())
+                .query(`
+                    INSERT INTO VentasProductos (IDProducto, Stock, PrecioUnitario, PrecioSubtotal, FechaVenta)
+                    VALUES (@IDProducto, @Stock, @PrecioUnitario, @PrecioSubtotal, @FechaVenta)
+                `);
+
+            // Actualizar el stock del producto
+            await new sql.Request(transaction)
+                .input('IDProducto', sql.Int, idProducto)
+                .input('CantidadVendida', sql.Int, cantidad)
+                .query(`
+                    UPDATE Productos 
+                    SET Stock = Stock - @CantidadVendida 
+                    WHERE IDProductos = @IDProducto
+                `);
+
+            // Registrar el ingreso en la tabla de transacciones
+            await new sql.Request(transaction)
+                .input('Descripcion', sql.VarChar(255), `Venta de producto ID: ${idProducto}`)
+                .input('Monto', sql.Decimal(10, 2), precioSubtotal)
+                .input('Fecha', sql.DateTime, fechaVenta || new Date())
+                .query(`
+                    INSERT INTO Transaccion (descripcion, monto, tipo, fecha)
+                    VALUES (@Descripcion, @Monto, 'ingreso', @Fecha)
+                `);
         }
-    } catch (err) {
-        console.error('Error al agregar venta:', err);
-        res.status(500).send('Error del servidor al agregar la venta.');
+
+        // Actualizar el saldo disponible
+        const totalVenta = productos.reduce((sum, producto) =>
+            sum + (producto.cantidad * producto.precioUnitario), 0);
+
+        await new sql.Request(transaction)
+            .input('MontoTotal', sql.Decimal(10, 2), totalVenta)
+            .query(`
+                UPDATE DineroDisponible 
+                SET ingresos = ingresos + @MontoTotal,
+                    saldo = saldo + @MontoTotal 
+                WHERE ID = 1
+            `);
+
+        await transaction.commit();
+        res.status(201).json({
+            message: 'Venta registrada exitosamente',
+            totalVenta
+        });
+
+    } catch (error) {
+        await transaction.rollback();
+        console.error('Error al procesar la venta:', error);
+        res.status(500).json({
+            message: 'Error al procesar la venta',
+            error: error.message
+        });
     }
 });
-
 
 
 // Añadir esta línea para iniciar el servidor
