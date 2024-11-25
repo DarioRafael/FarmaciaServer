@@ -508,12 +508,12 @@ app.get('/api/v1/ventas', async (req, res) => {
 });
 
 app.post('/api/v1/ventas', async (req, res) => {
-    // Esperamos un array de productos vendidos
-    // [{ idProducto, cantidad, precioUnitario }]
-    const { productos, fechaVenta } = req.body;
+    const { productos } = req.body;
 
     if (!Array.isArray(productos) || productos.length === 0) {
-        return res.status(400).send('Debe proporcionar al menos un producto para la venta');
+        return res.status(400).json({
+            message: 'Debe proporcionar al menos un producto para la venta'
+        });
     }
 
     const pool = await sql.connect(config);
@@ -524,32 +524,29 @@ app.post('/api/v1/ventas', async (req, res) => {
 
         // Para cada producto en la venta
         for (const producto of productos) {
-            const { idProducto, cantidad, precioUnitario } = producto;
+            const { IDProducto, Stock, PrecioUnitario, PrecioSubtotal } = producto;
 
             // Verificar stock disponible
             const stockResult = await new sql.Request(transaction)
-                .input('IDProducto', sql.Int, idProducto)
+                .input('IDProducto', sql.Int, IDProducto)
                 .query('SELECT Stock FROM Productos WHERE IDProductos = @IDProducto');
 
             if (stockResult.recordset.length === 0) {
-                throw new Error(`Producto con ID ${idProducto} no encontrado`);
+                throw new Error(`Producto con ID ${IDProducto} no encontrado`);
             }
 
             const stockDisponible = stockResult.recordset[0].Stock;
-            if (stockDisponible < cantidad) {
-                throw new Error(`Stock insuficiente para el producto ${idProducto}`);
+            if (stockDisponible < Stock) {
+                throw new Error(`Stock insuficiente para el producto ${IDProducto}`);
             }
-
-            // Calcular subtotal
-            const precioSubtotal = cantidad * precioUnitario;
 
             // Insertar la venta
             await new sql.Request(transaction)
-                .input('IDProducto', sql.Int, idProducto)
-                .input('Stock', sql.Int, cantidad)
-                .input('PrecioUnitario', sql.Decimal(10, 2), precioUnitario)
-                .input('PrecioSubtotal', sql.Decimal(10, 2), precioSubtotal)
-                .input('FechaVenta', sql.Date, fechaVenta || new Date())
+                .input('IDProducto', sql.Int, IDProducto)
+                .input('Stock', sql.Int, Stock)
+                .input('PrecioUnitario', sql.Decimal(10, 2), PrecioUnitario)
+                .input('PrecioSubtotal', sql.Decimal(10, 2), PrecioSubtotal)
+                .input('FechaVenta', sql.Date, new Date())
                 .query(`
                     INSERT INTO VentasProductos (IDProducto, Stock, PrecioUnitario, PrecioSubtotal, FechaVenta)
                     VALUES (@IDProducto, @Stock, @PrecioUnitario, @PrecioSubtotal, @FechaVenta)
@@ -557,42 +554,18 @@ app.post('/api/v1/ventas', async (req, res) => {
 
             // Actualizar el stock del producto
             await new sql.Request(transaction)
-                .input('IDProducto', sql.Int, idProducto)
-                .input('CantidadVendida', sql.Int, cantidad)
+                .input('IDProducto', sql.Int, IDProducto)
+                .input('CantidadVendida', sql.Int, Stock)
                 .query(`
-                    UPDATE Productos 
-                    SET Stock = Stock - @CantidadVendida 
+                    UPDATE Productos
+                    SET Stock = Stock - @CantidadVendida
                     WHERE IDProductos = @IDProducto
-                `);
-
-            // Registrar el ingreso en la tabla de transacciones
-            await new sql.Request(transaction)
-                .input('Descripcion', sql.VarChar(255), `Venta de producto ID: ${idProducto}`)
-                .input('Monto', sql.Decimal(10, 2), precioSubtotal)
-                .input('Fecha', sql.DateTime, fechaVenta || new Date())
-                .query(`
-                    INSERT INTO Transaccion (descripcion, monto, tipo, fecha)
-                    VALUES (@Descripcion, @Monto, 'ingreso', @Fecha)
                 `);
         }
 
-        // Actualizar el saldo disponible
-        const totalVenta = productos.reduce((sum, producto) =>
-            sum + (producto.cantidad * producto.precioUnitario), 0);
-
-        await new sql.Request(transaction)
-            .input('MontoTotal', sql.Decimal(10, 2), totalVenta)
-            .query(`
-                UPDATE DineroDisponible 
-                SET ingresos = ingresos + @MontoTotal,
-                    saldo = saldo + @MontoTotal 
-                WHERE ID = 1
-            `);
-
         await transaction.commit();
         res.status(201).json({
-            message: 'Venta registrada exitosamente',
-            totalVenta
+            message: 'Venta registrada exitosamente'
         });
 
     } catch (error) {
@@ -604,7 +577,6 @@ app.post('/api/v1/ventas', async (req, res) => {
         });
     }
 });
-
 
 // Añadir esta línea para iniciar el servidor
 app.listen(port, () => {
