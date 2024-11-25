@@ -512,7 +512,7 @@ app.post('/api/v1/ventas', async (req, res) => {
 
     if (!Array.isArray(productos) || productos.length === 0) {
         return res.status(400).json({
-            message: 'Debe proporcionar al menos un producto para la venta'
+            message: 'Debe proporcionar al menos un producto para la venta',
         });
     }
 
@@ -522,7 +522,18 @@ app.post('/api/v1/ventas', async (req, res) => {
     try {
         await transaction.begin();
 
-        // Para cada producto en la venta
+        // 1. Insertar una nueva venta en la tabla principal `Ventas`
+        const ventaResult = await new sql.Request(transaction)
+            .input('FechaVenta', sql.DateTime, new Date())
+            .query(`
+                INSERT INTO Ventas (FechaVenta)
+                OUTPUT INSERTED.IDVenta
+                VALUES (@FechaVenta)
+            `);
+
+        const idVenta = ventaResult.recordset[0].IDVenta;
+
+        // 2. Procesar cada producto y vincularlo con el ID de venta
         for (const producto of productos) {
             const { IDProducto, Stock, PrecioUnitario, PrecioSubtotal } = producto;
 
@@ -540,16 +551,16 @@ app.post('/api/v1/ventas', async (req, res) => {
                 throw new Error(`Stock insuficiente para el producto ${IDProducto}`);
             }
 
-            // Insertar la venta
+            // Insertar los detalles de la venta
             await new sql.Request(transaction)
+                .input('IDVenta', sql.Int, idVenta) // Asociar el producto con la venta principal
                 .input('IDProducto', sql.Int, IDProducto)
                 .input('Stock', sql.Int, Stock)
                 .input('PrecioUnitario', sql.Decimal(10, 2), PrecioUnitario)
                 .input('PrecioSubtotal', sql.Decimal(10, 2), PrecioSubtotal)
-                .input('FechaVenta', sql.Date, new Date())
                 .query(`
-                    INSERT INTO VentasProductos (IDProducto, Stock, PrecioUnitario, PrecioSubtotal, FechaVenta)
-                    VALUES (@IDProducto, @Stock, @PrecioUnitario, @PrecioSubtotal, @FechaVenta)
+                    INSERT INTO VentasProductos (IDVenta, IDProducto, Stock, PrecioUnitario, PrecioSubtotal)
+                    VALUES (@IDVenta, @IDProducto, @Stock, @PrecioUnitario, @PrecioSubtotal)
                 `);
 
             // Actualizar el stock del producto
@@ -565,7 +576,8 @@ app.post('/api/v1/ventas', async (req, res) => {
 
         await transaction.commit();
         res.status(201).json({
-            message: 'Venta registrada exitosamente'
+            message: 'Venta registrada exitosamente',
+            idVenta: idVenta, // Retorna el ID de la venta
         });
 
     } catch (error) {
@@ -573,10 +585,11 @@ app.post('/api/v1/ventas', async (req, res) => {
         console.error('Error al procesar la venta:', error);
         res.status(500).json({
             message: 'Error al procesar la venta',
-            error: error.message
+            error: error.message,
         });
     }
 });
+
 
 // Añadir esta línea para iniciar el servidor
 app.listen(port, () => {
