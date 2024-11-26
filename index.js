@@ -488,8 +488,10 @@ app.get('/api/v1/ventas', async (req, res) => {
 
         // Obtener ventas con la fecha formateada
         const result = await pool.request().query(`
-            SELECT  
+            SELECT
                 v.IDVenta,
+                IDCategoria = (SELECT c.IDCategoria FROM Productos c  WHERE c.IDProductos = v.IDProducto),
+                v.IDProducto,
                 Producto = (SELECT p.Nombre FROM Productos p WHERE p.IDProductos = v.IDProducto),
                 v.Stock,
                 v.PrecioUnitario,
