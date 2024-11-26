@@ -495,7 +495,8 @@ app.get('/api/v1/ventas', async (req, res) => {
                 Producto = (SELECT p.Nombre FROM Productos p WHERE p.IDProductos = v.IDProducto),
                 v.Stock,
                 v.PrecioUnitario,
-                v.PrecioSubtotal
+                v.PrecioSubtotal,
+                Fecha =(SELECT ven.FechaVenta FROM Ventas ven WHERE ven.IDVenta = v.IDVenta)
             FROM VentasProductos v
         `);
 
