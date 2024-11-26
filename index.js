@@ -493,8 +493,7 @@ app.get('/api/v1/ventas', async (req, res) => {
                 Producto = (SELECT p.Nombre FROM Productos p WHERE p.IDProductos = v.IDProducto),
                 v.Stock,
                 v.PrecioUnitario,
-                v.PrecioSubtotal,
-                FechaVenta = CONVERT(VARCHAR, v.FechaVenta, 23) -- Formato YYYY-MM-DD
+                v.PrecioSubtotal
             FROM VentasProductos v
         `);
 
