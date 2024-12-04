@@ -412,17 +412,7 @@ app.post('/api/v1/transaccionesinsert', async (req, res) => {
             .input('Monto', sql.Decimal(10, 2), monto)
             .input('Tipo', sql.VarChar(10), tipo)
             .input('Fecha', sql.DateTime, fecha)
-            .query('INSERT INTO Transaccion (descripcion, monto, tipo, fecha) VALUES (@Descripcion, @Monto, @Tipo, @Fecha)');
-
-        if (tipo === 'ingreso') {
-            await pool.request()
-                .input('Monto', sql.Decimal(10, 2), monto)
-                .query('UPDATE DineroDisponible SET ingresos = ingresos + @Monto, saldo = saldo + @Monto WHERE ID = 1');
-        } else if (tipo === 'egreso') {
-            await pool.request()
-                .input('Monto', sql.Decimal(10, 2), monto)
-                .query('UPDATE DineroDisponible SET egresos = egresos + @Monto, saldo = saldo - @Monto WHERE ID = 1');
-        }
+            .execute('sp_InsertarTransaccion');
 
         res.status(201).send('Transacción añadida exitosamente');
     } catch (err) {
