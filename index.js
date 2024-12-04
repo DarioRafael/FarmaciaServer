@@ -112,39 +112,28 @@ app.post('/api/v1/registrar', async (req, res) => {
         return res.status(400).send('Todos los campos son obligatorios.');
     }
 
-    const pool = await sql.connect(config);
-    const transaction = new sql.Transaction(pool);
-
     try {
-        await transaction.begin();
-
-        const result = await transaction.request()
-            .input('correo', sql.VarChar, correo)
-            .execute('sp_VerificarCorreo');
-
-        if (result.recordset[0].CorreoExistente === 1) {
-            await transaction.rollback();
-            return res.status(400).send('El correo ya está registrado.');
-        }
+        const pool = await sql.connect(config);
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        await transaction.request()
+        await pool.request()
             .input('nombre', sql.VarChar, nombre)
             .input('correo', sql.VarChar, correo)
             .input('contraseña', sql.VarChar, hashedPassword)
             .input('rol', sql.VarChar, rol)
             .input('fecha_creacion', sql.DateTime, new Date())
             .input('estado', sql.VarChar, 'activo')
-            .execute('sp_RegistrarTrabajador');
-
-        await transaction.commit();
+            .execute('sp_RegistrarTrabajadorTransaccional');
 
         res.status(201).send('Usuario registrado correctamente.');
     } catch (err) {
-        await transaction.rollback();
-        console.error('Error al registrar usuario:', err.message);
-        res.status(500).send('Error al registrar usuario.');
+        if (err.message.includes('El correo ya está registrado')) {
+            res.status(400).send('El correo ya está registrado.');
+        } else {
+            console.error('Error al registrar usuario:', err.message);
+            res.status(500).send('Error al registrar usuario.');
+        }
     }
 });
 
