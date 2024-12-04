@@ -113,25 +113,22 @@ app.post('/api/v1/registrar', async (req, res) => {
     }
 
     const pool = await sql.connect(config);
-    const transaction = new sql.Transaction(pool); // Crear una transacción
+    const transaction = new sql.Transaction(pool);
 
     try {
-        await transaction.begin(); // Iniciar la transacción
+        await transaction.begin();
 
-        // Verificar si el correo ya está registrado utilizando el procedimiento almacenado
         const result = await transaction.request()
             .input('correo', sql.VarChar, correo)
-            .execute('sp_VerificarCorreo');  // Llamamos al procedimiento almacenado
+            .execute('sp_VerificarCorreo');
 
         if (result.recordset[0].CorreoExistente === 1) {
-            await transaction.rollback(); // Revertir la transacción si el correo ya existe
+            await transaction.rollback();
             return res.status(400).send('El correo ya está registrado.');
         }
 
-        // Encriptar la contraseña
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // Llamar al procedimiento almacenado para insertar el nuevo trabajador
         await transaction.request()
             .input('nombre', sql.VarChar, nombre)
             .input('correo', sql.VarChar, correo)
@@ -139,13 +136,13 @@ app.post('/api/v1/registrar', async (req, res) => {
             .input('rol', sql.VarChar, rol)
             .input('fecha_creacion', sql.DateTime, new Date())
             .input('estado', sql.VarChar, 'activo')
-            .execute('sp_RegistrarTrabajador');  // Llamar al procedimiento almacenado para insertar el trabajador
+            .execute('sp_RegistrarTrabajador');
 
-        await transaction.commit(); // Confirmar la transacción
+        await transaction.commit();
 
         res.status(201).send('Usuario registrado correctamente.');
     } catch (err) {
-        await transaction.rollback(); // Revertir la transacción en caso de error
+        await transaction.rollback();
         console.error('Error al registrar usuario:', err.message);
         res.status(500).send('Error al registrar usuario.');
     }
@@ -206,7 +203,6 @@ app.patch('/api/v1/trabajadores/:id/estado', async (req, res) => {
     const { id } = req.params;
     const { estado } = req.body;
 
-    // Validar que 'estado' esté presente y sea 'activo' o 'inactivo'
     if (!estado || !['activo', 'inactivo'].includes(estado.toLowerCase())) {
         return res.status(400).send("Estado inválido. Debe ser 'activo' o 'inactivo'.");
     }
@@ -237,11 +233,9 @@ app.post('/api/v1/actualizar-contrasenas', async (req, res) => {
     try {
         const pool = await sql.connect(config);
 
-        // Obtener todas las contraseñas de la tabla Trabajadores
         const request = pool.request();
         const result = await request.query('SELECT id, contraseña FROM Trabajadores');
 
-        // Iniciar una transacción
         const transaction = new sql.Transaction(pool);
         await transaction.begin();
 
@@ -249,7 +243,6 @@ app.post('/api/v1/actualizar-contrasenas', async (req, res) => {
             if (user.contraseña) {
                 const hashedPassword = await bcrypt.hash(user.contraseña, 10);
 
-                // Crear una nueva solicitud para cada consulta dentro de la transacción
                 const transactionRequest = new sql.Request(transaction);
 
                 await transactionRequest
@@ -259,14 +252,12 @@ app.post('/api/v1/actualizar-contrasenas', async (req, res) => {
             }
         }
 
-        // Confirmar la transacción
         await transaction.commit();
 
         res.status(200).send('Contraseñas actualizadas correctamente.');
     } catch (err) {
         console.error('Error al actualizar contraseñas:', err.message);
 
-        // Manejo de errores y revertir la transacción si es necesario
         if (transaction) {
             try {
                 await transaction.rollback();
@@ -387,24 +378,9 @@ app.get('/api/v1/saldo', async (req, res) => {
     try {
         const pool = await sql.connect(config);
         const result = await pool.request()
-            .query(`
-                SELECT
-                    d.saldo AS baseSaldo,
-                    (SELECT ISNULL(SUM(monto), 0) FROM Transaccion WHERE tipo = 'ingreso') AS totalIngresos,
-                    (SELECT ISNULL(SUM(monto), 0) FROM Transaccion WHERE tipo = 'egreso') AS totalEgresos,
-                    d.saldo +
-                    (SELECT ISNULL(SUM(monto), 0) FROM Transaccion WHERE tipo = 'ingreso') -
-                    (SELECT ISNULL(SUM(monto), 0) FROM Transaccion WHERE tipo = 'egreso') AS saldoFinal
-                FROM DineroDisponible d
-                WHERE ID = 1;
-            `);
-
+            .query('SELECT * FROM dbo.fn_CalcularSaldo()');
 
         const saldo = result.recordset[0];
-        saldo.totalIngresos = saldo.totalIngresos || 0;
-        saldo.totalEgresos = saldo.totalEgresos || 0;
-        saldo.saldoFinal = saldo.saldo + saldo.totalIngresos - saldo.totalEgresos;
-
         res.status(200).json(saldo);
     } catch (err) {
         console.error('Error al obtener el saldo:', err);
