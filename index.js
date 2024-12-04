@@ -164,33 +164,12 @@ app.delete('/api/v1/trabajadores/:id/eliminar', async (req, res) => {
 
     try {
         const pool = await sql.connect(config);
-
-        // Verificar si el trabajador existe antes de eliminar
-        const checkWorker = await pool.request()
-            .input('id', sql.Int, id)
-            .query('SELECT COUNT(*) AS count FROM Trabajadores WHERE id = @id');
-
-        if (checkWorker.recordset[0].count === 0) {
-            return res.status(404).send('Trabajador no encontrado.');
-        }
-
-        // Ejecutar el procedimiento almacenado para eliminar
         const result = await pool.request()
             .input('id', sql.Int, id)
-            .execute('sp_EliminarTrabajador'); // Ejecuta el procedimiento almacenado
+            .query('DELETE FROM Trabajadores WHERE id = @id');
 
-        // Verificamos si las filas afectadas es mayor que 0
         if (result.rowsAffected[0] > 0) {
-            // Verificación adicional para asegurarnos de que el trabajador fue eliminado
-            const verifyDeletion = await pool.request()
-                .input('id', sql.Int, id)
-                .query('SELECT COUNT(*) AS count FROM Trabajadores WHERE id = @id');
-
-            if (verifyDeletion.recordset[0].count === 0) {
-                res.status(200).send('Trabajador eliminado exitosamente.');
-            } else {
-                res.status(500).send('Error interno: el trabajador no fue eliminado correctamente.');
-            }
+            res.status(200).send('Trabajador eliminado exitosamente.');
         } else {
             res.status(404).send('Trabajador no encontrado.');
         }
@@ -199,7 +178,6 @@ app.delete('/api/v1/trabajadores/:id/eliminar', async (req, res) => {
         res.status(500).send('Error del servidor al eliminar trabajador.');
     }
 });
-
 
 
 
@@ -380,34 +358,28 @@ app.put('/api/v1/productos/:id', async (req, res) => {
     try {
         const pool = await sql.connect(config);
 
-        const categoryResult = await pool.request()
-            .input('Nombre', sql.VarChar, categoria)
-            .query('SELECT IDCategoria FROM Categoria WHERE Nombre = @Nombre');
-
-        if (categoryResult.recordset.length === 0) {
-            return res.status(400).send('Categoría no encontrada');
-        }
-
-        const idCategoria = categoryResult.recordset[0].IDCategoria;
-
+        // Llamar al procedimiento almacenado con el prefijo 'sp'
         const result = await pool.request()
             .input('ID', sql.Int, id)
             .input('Nombre', sql.VarChar, nombre)
-            .input('IDCategoria', sql.Int, idCategoria)
+            .input('Categoria', sql.VarChar, categoria)
             .input('Stock', sql.Int, stock)
             .input('Precio', sql.Decimal(18, 2), precio)
-            .query('UPDATE Productos SET Nombre = @Nombre, IDCategoria = @IDCategoria, Stock = @Stock, Precio = @Precio WHERE IDProductos = @ID');
+            .execute('sp_ActualizarProducto');  // Llamada al procedimiento almacenado con prefijo 'sp'
 
-        if (result.rowsAffected[0] > 0) {
-            res.status(200).send('Producto actualizado exitosamente.');
-        } else {
-            res.status(404).send('Producto no encontrado.');
-        }
+        res.status(200).send('Producto actualizado exitosamente.');
     } catch (err) {
+        if (err.message.includes('Categoría no encontrada')) {
+            return res.status(400).send('Categoría no encontrada');
+        }
+        if (err.message.includes('Producto no encontrado')) {
+            return res.status(404).send('Producto no encontrado');
+        }
         console.error('Error al actualizar producto:', err);
         res.status(500).send('Error del servidor al actualizar producto.');
     }
 });
+
 
 app.get('/api/v1/saldo', async (req, res) => {
     try {
