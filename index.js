@@ -158,15 +158,16 @@ app.get('/api/v1/trabajadores', async (req, res) => {
         res.status(500).send('Error del servidor al obtener trabajadores');
     }
 });
-
 app.delete('/api/v1/trabajadores/:id/eliminar', async (req, res) => {
     const { id } = req.params;
 
     try {
         const pool = await sql.connect(config);
-        const result = await pool.request()
+        const request = pool.request();
+
+        const result = await request
             .input('id', sql.Int, id)
-            .query('DELETE FROM Trabajadores WHERE id = @id');
+            .execute('sp_EliminarTrabajador');
 
         if (result.rowsAffected[0] > 0) {
             res.status(200).send('Trabajador eliminado exitosamente.');
@@ -178,6 +179,7 @@ app.delete('/api/v1/trabajadores/:id/eliminar', async (req, res) => {
         res.status(500).send('Error del servidor al eliminar trabajador.');
     }
 });
+
 
 
 
