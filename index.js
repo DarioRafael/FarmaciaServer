@@ -457,66 +457,31 @@ app.post('/api/v1/ventas', async (req, res) => {
     }
 
     const pool = await sql.connect(config);
-    const transaction = new sql.Transaction(pool);
 
     try {
-        await transaction.begin();
+        const table = new sql.Table('TVP_Productos');
+        table.columns.add('IDProducto', sql.Int);
+        table.columns.add('Stock', sql.Int);
+        table.columns.add('PrecioUnitario', sql.Decimal(10, 2));
+        table.columns.add('PrecioSubtotal', sql.Decimal(10, 2));
 
-        const ventaResult = await new sql.Request(transaction)
+        productos.forEach(producto => {
+            table.rows.add(producto.IDProducto, producto.Stock, producto.PrecioUnitario, producto.PrecioSubtotal);
+        });
+
+        const result = await pool.request()
             .input('FechaVenta', sql.DateTime, new Date())
-            .query(`
-                INSERT INTO Ventas (FechaVenta)
-                OUTPUT INSERTED.IDVenta
-                VALUES (@FechaVenta)
-            `);
+            .input('Productos', table)
+            .execute('sp_InsertarVenta');
 
-        const idVenta = ventaResult.recordset[0].IDVenta;
+        const idVenta = result.returnValue;
 
-        for (const producto of productos) {
-            const { IDProducto, Stock, PrecioUnitario, PrecioSubtotal } = producto;
-
-            const stockResult = await new sql.Request(transaction)
-                .input('IDProducto', sql.Int, IDProducto)
-                .query('SELECT Stock FROM Productos WHERE IDProductos = @IDProducto');
-
-            if (stockResult.recordset.length === 0) {
-                throw new Error(`Producto con ID ${IDProducto} no encontrado`);
-            }
-
-            const stockDisponible = stockResult.recordset[0].Stock;
-            if (stockDisponible < Stock) {
-                throw new Error(`Stock insuficiente para el producto ${IDProducto}`);
-            }
-
-            await new sql.Request(transaction)
-                .input('IDVenta', sql.Int, idVenta) // Asociar el producto con la venta principal
-                .input('IDProducto', sql.Int, IDProducto)
-                .input('Stock', sql.Int, Stock)
-                .input('PrecioUnitario', sql.Decimal(10, 2), PrecioUnitario)
-                .input('PrecioSubtotal', sql.Decimal(10, 2), PrecioSubtotal)
-                .query(`
-                    INSERT INTO VentasProductos (IDVenta, IDProducto, Stock, PrecioUnitario, PrecioSubtotal)
-                    VALUES (@IDVenta, @IDProducto, @Stock, @PrecioUnitario, @PrecioSubtotal)
-                `);
-
-            await new sql.Request(transaction)
-                .input('IDProducto', sql.Int, IDProducto)
-                .input('CantidadVendida', sql.Int, Stock)
-                .query(`
-                    UPDATE Productos
-                    SET Stock = Stock - @CantidadVendida
-                    WHERE IDProductos = @IDProducto
-                `);
-        }
-
-        await transaction.commit();
         res.status(201).json({
             message: 'Venta registrada exitosamente',
             idVenta: idVenta,
         });
 
     } catch (error) {
-        await transaction.rollback();
         console.error('Error al procesar la venta:', error);
         res.status(500).json({
             message: 'Error al procesar la venta',
@@ -524,7 +489,6 @@ app.post('/api/v1/ventas', async (req, res) => {
         });
     }
 });
-
 
 app.listen(port, () => {
     console.log(`Servidor en ejecución en el puerto ${port}`);
