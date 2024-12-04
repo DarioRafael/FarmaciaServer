@@ -276,7 +276,7 @@ app.get('/api/v1/categorias', async (req, res) => {
     try {
         const pool = await sql.connect(config);
         const result = await pool.request()
-            .query('SELECT C.IDCategoria,C.Nombre FROM Categoria C;');
+            .execute('sp_ObtenerCategorias');
 
         res.status(200).json(result.recordset);
     } catch (err) {
@@ -286,12 +286,12 @@ app.get('/api/v1/categorias', async (req, res) => {
 });
 
 
+
 app.get('/api/v1/productos', async (req, res) => {
     try {
         const pool = await sql.connect(config);
         const result = await pool.request()
             .query('SELECT P.IDProductos,P.Nombre,Categoria = (SELECT C.Nombre FROM Categoria C WHERE P.IDCategoria = C.IDCategoria),P.Stock,P.Precio,P.PrecioDeCompra FROM Productos P;');
-
         res.status(200).json(result.recordset);
     } catch (err) {
         console.error('Error al obtener productos:', err);
