@@ -112,15 +112,19 @@ app.post('/api/v1/registrar', async (req, res) => {
         return res.status(400).send('Todos los campos son obligatorios.');
     }
 
+    const pool = await sql.connect(config);
+    const transaction = new sql.Transaction(pool); // Crear una transacción
+
     try {
-        const pool = await sql.connect(config);
+        await transaction.begin(); // Iniciar la transacción
 
         // Verificar si el correo ya está registrado utilizando el procedimiento almacenado
-        const result = await pool.request()
+        const result = await transaction.request()
             .input('correo', sql.VarChar, correo)
             .execute('sp_VerificarCorreo');  // Llamamos al procedimiento almacenado
 
         if (result.recordset[0].CorreoExistente === 1) {
+            await transaction.rollback(); // Revertir la transacción si el correo ya existe
             return res.status(400).send('El correo ya está registrado.');
         }
 
@@ -128,7 +132,7 @@ app.post('/api/v1/registrar', async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, 10);
 
         // Llamar al procedimiento almacenado para insertar el nuevo trabajador
-        await pool.request()
+        await transaction.request()
             .input('nombre', sql.VarChar, nombre)
             .input('correo', sql.VarChar, correo)
             .input('contraseña', sql.VarChar, hashedPassword)
@@ -137,8 +141,11 @@ app.post('/api/v1/registrar', async (req, res) => {
             .input('estado', sql.VarChar, 'activo')
             .execute('sp_RegistrarTrabajador');  // Llamar al procedimiento almacenado para insertar el trabajador
 
+        await transaction.commit(); // Confirmar la transacción
+
         res.status(201).send('Usuario registrado correctamente.');
     } catch (err) {
+        await transaction.rollback(); // Revertir la transacción en caso de error
         console.error('Error al registrar usuario:', err.message);
         res.status(500).send('Error al registrar usuario.');
     }
