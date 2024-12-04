@@ -24,7 +24,7 @@ const allowedOrigins = [
     'https://modelo-shop-app.vercel.app/#/login',
     'https://modelo-shop-app.vercel.app/login',
     'https://modelo-shop-app-git-main-dariorafaels-projects.vercel.app/',
-    /^http:\/\/localhost:\d+$/ // Acepta cualquier puerto en localhost
+    /^http:\/\/localhost:\d+$/
 ];
 //
 app.use(cors({
@@ -51,13 +51,12 @@ app.post('/api/v1/ingresar', async (req, res) => {
         const pool = await sql.connect(config);
         const request = pool.request();
         const result = await request
-            .input('correo', sql.VarChar, email)
-            .query('SELECT * FROM Trabajadores WHERE correo = @correo');
+            .input('correo', sql.VarChar, email)  // Manteniendo el tipo como sql.VarChar
+            .execute('sp_AutenticarTrabajador');
 
         if (result.recordset.length > 0) {
             const user = result.recordset[0];
 
-            // Verificar el estado del usuario
             if (user.estado !== 'activo') {
                 return res.status(403).send('Acceso denegado: el usuario está inactivo.');
             }
@@ -71,7 +70,7 @@ app.post('/api/v1/ingresar', async (req, res) => {
                         id: user.id,
                         nombre: user.nombre,
                         correo: user.correo,
-                        rol: user.rol, // Devuelve el rol
+                        rol: user.rol,
                     },
                 });
             } else {
@@ -87,9 +86,10 @@ app.post('/api/v1/ingresar', async (req, res) => {
 });
 
 
+
 const authorizeRole = (roles) => {
     return (req, res, next) => {
-        const userRole = req.user.rol; // Asegúrate de que el rol del usuario esté disponible en el req.user
+        const userRole = req.user.rol;
 
         if (roles.includes(userRole)) {
             return next();
@@ -99,14 +99,12 @@ const authorizeRole = (roles) => {
     };
 };
 
-// Por ejemplo, si tienes una ruta que solo debe ser accesible por administradores
 app.get('/api/v1/admin', authorizeRole(['admin']), (req, res) => {
     res.status(200).send('Acceso a administrador concedido.');
 });
 
 
 
-//Register
 app.post('/api/v1/registrar', async (req, res) => {
     const {nombre, correo, password, rol} = req.body;
 
@@ -160,7 +158,6 @@ app.get('/api/v1/trabajadores', async (req, res) => {
     }
 });
 
-// Endpoint para eliminar un trabajador
 app.delete('/api/v1/trabajadores/:id/eliminar', async (req, res) => {
     const { id } = req.params;
 
@@ -197,7 +194,6 @@ app.delete('/api/v1/trabajadores/:id', async (req, res) => {
     }
 });
 
-// Endpoint para actualizar el estado de un trabajador
 app.patch('/api/v1/trabajadores/:id/estado', async (req, res) => {
     const { id } = req.params;
     const { estado } = req.body;
@@ -309,7 +305,6 @@ app.post('/api/v1/productosinsert', async (req, res) => {
     try {
         const pool = await sql.connect(config);
 
-        // Get the category ID based on the category name
         const categoryResult = await pool.request()
             .input('Nombre', sql.VarChar, categoria)
             .query('SELECT IDCategoria FROM Categoria WHERE Nombre = @Nombre');
@@ -362,7 +357,6 @@ app.put('/api/v1/productos/:id', async (req, res) => {
     try {
         const pool = await sql.connect(config);
 
-        // Get the category ID based on the category name
         const categoryResult = await pool.request()
             .input('Nombre', sql.VarChar, categoria)
             .query('SELECT IDCategoria FROM Categoria WHERE Nombre = @Nombre');
@@ -427,16 +421,12 @@ app.get('/api/v1/transacciones', async (req, res) => {
     try {
         const pool = await sql.connect(config);
 
-        // Obtener todas las transacciones
         const result = await pool.request().query('SELECT * FROM Transaccion');
 
-        // // Obtener el estado actual de DineroDisponible (ingresos, egresos, saldo)
-        // const dineroDisponible = await pool.request().query('SELECT * FROM DineroDisponible WHERE ID = 1');
 
-        // Responder con las transacciones y el estado de DineroDisponible
+
         res.status(200).json({
             transacciones: result.recordset,
-            // dineroDisponible: dineroDisponible.recordset[0]
         });
     } catch (err) {
         console.error('Error al recuperar transacciones:', err);
@@ -451,12 +441,10 @@ app.post('/api/v1/transaccionesinsert', async (req, res) => {
     try {
         const pool = await sql.connect(config);
 
-        // Validar si el tipo es 'ingreso' o 'egreso'
         if (!['ingreso', 'egreso'].includes(tipo)) {
             return res.status(400).send('Tipo de transacción inválido');
         }
 
-        // Inserta la nueva transacción
         await pool.request()
             .input('Descripcion', sql.VarChar(255), descripcion)
             .input('Monto', sql.Decimal(10, 2), monto)
@@ -464,7 +452,6 @@ app.post('/api/v1/transaccionesinsert', async (req, res) => {
             .input('Fecha', sql.DateTime, fecha)
             .query('INSERT INTO Transaccion (descripcion, monto, tipo, fecha) VALUES (@Descripcion, @Monto, @Tipo, @Fecha)');
 
-        // Actualiza los ingresos o egresos y el saldo
         if (tipo === 'ingreso') {
             await pool.request()
                 .input('Monto', sql.Decimal(10, 2), monto)
@@ -486,7 +473,6 @@ app.get('/api/v1/ventas', async (req, res) => {
     try {
         const pool = await sql.connect(config);
 
-        // Obtener ventas con la fecha formateada
         const result = await pool.request().query(`
             SELECT
                 v.IDVenta,
@@ -524,7 +510,6 @@ app.post('/api/v1/ventas', async (req, res) => {
     try {
         await transaction.begin();
 
-        // 1. Insertar una nueva venta en la tabla principal `Ventas`
         const ventaResult = await new sql.Request(transaction)
             .input('FechaVenta', sql.DateTime, new Date())
             .query(`
@@ -535,11 +520,9 @@ app.post('/api/v1/ventas', async (req, res) => {
 
         const idVenta = ventaResult.recordset[0].IDVenta;
 
-        // 2. Procesar cada producto y vincularlo con el ID de venta
         for (const producto of productos) {
             const { IDProducto, Stock, PrecioUnitario, PrecioSubtotal } = producto;
 
-            // Verificar stock disponible
             const stockResult = await new sql.Request(transaction)
                 .input('IDProducto', sql.Int, IDProducto)
                 .query('SELECT Stock FROM Productos WHERE IDProductos = @IDProducto');
@@ -553,7 +536,6 @@ app.post('/api/v1/ventas', async (req, res) => {
                 throw new Error(`Stock insuficiente para el producto ${IDProducto}`);
             }
 
-            // Insertar los detalles de la venta
             await new sql.Request(transaction)
                 .input('IDVenta', sql.Int, idVenta) // Asociar el producto con la venta principal
                 .input('IDProducto', sql.Int, IDProducto)
@@ -565,7 +547,6 @@ app.post('/api/v1/ventas', async (req, res) => {
                     VALUES (@IDVenta, @IDProducto, @Stock, @PrecioUnitario, @PrecioSubtotal)
                 `);
 
-            // Actualizar el stock del producto
             await new sql.Request(transaction)
                 .input('IDProducto', sql.Int, IDProducto)
                 .input('CantidadVendida', sql.Int, Stock)
@@ -579,7 +560,7 @@ app.post('/api/v1/ventas', async (req, res) => {
         await transaction.commit();
         res.status(201).json({
             message: 'Venta registrada exitosamente',
-            idVenta: idVenta, // Retorna el ID de la venta
+            idVenta: idVenta,
         });
 
     } catch (error) {
@@ -593,7 +574,6 @@ app.post('/api/v1/ventas', async (req, res) => {
 });
 
 
-// Añadir esta línea para iniciar el servidor
 app.listen(port, () => {
     console.log(`Servidor en ejecución en el puerto ${port}`);
 });
