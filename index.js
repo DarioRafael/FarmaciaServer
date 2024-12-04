@@ -106,7 +106,7 @@ app.get('/api/v1/admin', authorizeRole(['admin']), (req, res) => {
 
 
 app.post('/api/v1/registrar', async (req, res) => {
-    const {nombre, correo, password, rol} = req.body;
+    const { nombre, correo, password, rol } = req.body;
 
     if (!nombre || !correo || !password || !rol) {
         return res.status(400).send('Todos los campos son obligatorios.');
@@ -115,19 +115,19 @@ app.post('/api/v1/registrar', async (req, res) => {
     try {
         const pool = await sql.connect(config);
 
-        // Verificar si el correo ya está registrado
-        const existingUser = await pool.request()
+        // Verificar si el correo ya está registrado utilizando el procedimiento almacenado
+        const result = await pool.request()
             .input('correo', sql.VarChar, correo)
-            .query('SELECT * FROM Trabajadores WHERE correo = @correo');
+            .execute('sp_VerificarCorreo');  // Llamamos al procedimiento almacenado
 
-        if (existingUser.recordset.length > 0) {
+        if (result.recordset[0].CorreoExistente === 1) {
             return res.status(400).send('El correo ya está registrado.');
         }
 
         // Encriptar la contraseña
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // Insertar el nuevo usuario en la base de datos
+        // Llamar al procedimiento almacenado para insertar el nuevo trabajador
         await pool.request()
             .input('nombre', sql.VarChar, nombre)
             .input('correo', sql.VarChar, correo)
@@ -135,7 +135,7 @@ app.post('/api/v1/registrar', async (req, res) => {
             .input('rol', sql.VarChar, rol)
             .input('fecha_creacion', sql.DateTime, new Date())
             .input('estado', sql.VarChar, 'activo')
-            .query('INSERT INTO Trabajadores (nombre, correo, contraseña, rol, fecha_creacion, estado) VALUES (@nombre, @correo, @contraseña, @rol, @fecha_creacion, @estado)');
+            .execute('sp_RegistrarTrabajador');  // Llamar al procedimiento almacenado para insertar el trabajador
 
         res.status(201).send('Usuario registrado correctamente.');
     } catch (err) {
@@ -143,6 +143,7 @@ app.post('/api/v1/registrar', async (req, res) => {
         res.status(500).send('Error al registrar usuario.');
     }
 });
+
 
 
 app.get('/api/v1/trabajadores', async (req, res) => {
