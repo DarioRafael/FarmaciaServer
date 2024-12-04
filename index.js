@@ -51,7 +51,7 @@ app.post('/api/v1/ingresar', async (req, res) => {
         const pool = await sql.connect(config);
         const request = pool.request();
         const result = await request
-            .input('correo', sql.VarChar, email)  // Manteniendo el tipo como sql.VarChar
+            .input('correo', sql.VarChar, email)
             .execute('sp_AutenticarTrabajador');
 
         if (result.recordset.length > 0) {
@@ -299,7 +299,7 @@ app.post('/api/v1/productosinsert', async (req, res) => {
             .input('Categoria', sql.VarChar, categoria)
             .input('Stock', sql.Int, stock)
             .input('Precio', sql.Decimal(18, 2), precio)
-            .execute('sp_InsertarProducto');  // Llamada al procedimiento almacenado con prefijo 'sp'
+            .execute('sp_InsertarProducto');
 
         res.status(201).send('Producto añadido exitosamente');
     } catch (err) {
