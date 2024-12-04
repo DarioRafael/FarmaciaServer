@@ -164,12 +164,33 @@ app.delete('/api/v1/trabajadores/:id/eliminar', async (req, res) => {
 
     try {
         const pool = await sql.connect(config);
+
+        // Verificar si el trabajador existe antes de eliminar
+        const checkWorker = await pool.request()
+            .input('id', sql.Int, id)
+            .query('SELECT COUNT(*) AS count FROM Trabajadores WHERE id = @id');
+
+        if (checkWorker.recordset[0].count === 0) {
+            return res.status(404).send('Trabajador no encontrado.');
+        }
+
+        // Ejecutar el procedimiento almacenado para eliminar
         const result = await pool.request()
             .input('id', sql.Int, id)
             .execute('sp_EliminarTrabajador'); // Ejecuta el procedimiento almacenado
 
+        // Verificamos si las filas afectadas es mayor que 0
         if (result.rowsAffected[0] > 0) {
-            res.status(200).send('Trabajador eliminado exitosamente.');
+            // Verificación adicional para asegurarnos de que el trabajador fue eliminado
+            const verifyDeletion = await pool.request()
+                .input('id', sql.Int, id)
+                .query('SELECT COUNT(*) AS count FROM Trabajadores WHERE id = @id');
+
+            if (verifyDeletion.recordset[0].count === 0) {
+                res.status(200).send('Trabajador eliminado exitosamente.');
+            } else {
+                res.status(500).send('Error interno: el trabajador no fue eliminado correctamente.');
+            }
         } else {
             res.status(404).send('Trabajador no encontrado.');
         }
