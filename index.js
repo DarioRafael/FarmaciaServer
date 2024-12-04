@@ -166,7 +166,7 @@ app.delete('/api/v1/trabajadores/:id/eliminar', async (req, res) => {
         const pool = await sql.connect(config);
         const result = await pool.request()
             .input('id', sql.Int, id)
-            .query('DELETE FROM Trabajadores WHERE id = @id');
+            .execute('sp_EliminarTrabajador'); // Ejecuta el procedimiento almacenado
 
         if (result.rowsAffected[0] > 0) {
             res.status(200).send('Trabajador eliminado exitosamente.');
@@ -178,6 +178,7 @@ app.delete('/api/v1/trabajadores/:id/eliminar', async (req, res) => {
         res.status(500).send('Error del servidor al eliminar trabajador.');
     }
 });
+
 
 
 
