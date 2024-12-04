@@ -306,29 +306,24 @@ app.post('/api/v1/productosinsert', async (req, res) => {
     try {
         const pool = await sql.connect(config);
 
-        const categoryResult = await pool.request()
-            .input('Nombre', sql.VarChar, categoria)
-            .query('SELECT IDCategoria FROM Categoria WHERE Nombre = @Nombre');
-
-        if (categoryResult.recordset.length === 0) {
-            return res.status(400).send('Categoría no encontrada');
-        }
-
-        const idCategoria = categoryResult.recordset[0].IDCategoria;
-
-        await pool.request()
+        // Llamar al procedimiento almacenado con el prefijo 'sp'
+        const result = await pool.request()
             .input('Nombre', sql.VarChar, nombre)
-            .input('IDCategoria', sql.Int, idCategoria)
+            .input('Categoria', sql.VarChar, categoria)
             .input('Stock', sql.Int, stock)
             .input('Precio', sql.Decimal(18, 2), precio)
-            .query('INSERT INTO Productos (Nombre, IDCategoria, Stock, Precio) VALUES (@Nombre, @IDCategoria, @Stock, @Precio)');
+            .execute('sp_InsertarProducto');  // Llamada al procedimiento almacenado con prefijo 'sp'
 
         res.status(201).send('Producto añadido exitosamente');
     } catch (err) {
+        if (err.message.includes('Categoría no encontrada')) {
+            return res.status(400).send('Categoría no encontrada');
+        }
         console.error('Error al añadir producto:', err);
         res.status(500).send('Error del servidor al añadir producto');
     }
 });
+
 
 app.delete('/api/v1/productos/:id', async (req, res) => {
     const { id } = req.params;
