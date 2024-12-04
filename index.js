@@ -212,16 +212,16 @@ app.patch('/api/v1/trabajadores/:id/estado', async (req, res) => {
         const result = await pool.request()
             .input('id', sql.Int, id)
             .input('estado', sql.VarChar, estado.toLowerCase())
-            .query('UPDATE Trabajadores SET estado = @estado WHERE id = @id');
+            .execute('sp_ActualizarEstadoTrabajador');
 
-        if (result.rowsAffected[0] > 0) {
-            res.status(200).json({ message: `Estado del trabajador actualizado a '${estado}'.` });
-        } else {
-            res.status(404).send('Trabajador no encontrado.');
-        }
+        res.status(200).json({ message: `Estado del trabajador actualizado a '${estado}'.` });
     } catch (err) {
-        console.error('Error al actualizar estado del trabajador:', err);
-        res.status(500).send('Error del servidor al actualizar estado del trabajador.');
+        if (err.message.includes('Trabajador no encontrado')) {
+            res.status(404).send('Trabajador no encontrado.');
+        } else {
+            console.error('Error al actualizar estado del trabajador:', err);
+            res.status(500).send('Error del servidor al actualizar estado del trabajador.');
+        }
     }
 });
 
