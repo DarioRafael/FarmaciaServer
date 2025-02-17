@@ -24,6 +24,7 @@ const allowedOrigins = [
     'https://modelo-shop-app.vercel.app/#/login',
     'https://modelo-shop-app.vercel.app/login',
     'https://modelo-shop-app-git-main-dariorafaels-projects.vercel.app/',
+    'https://farmacia-app-two.vercel.app/',
     /^http:\/\/localhost:\d+$/
 ];
 //
