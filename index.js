@@ -23,8 +23,8 @@ const allowedOrigins = [
     'https://modelo-shop-app.vercel.app',
     'https://modelo-shop-app.vercel.app/#/login',
     'https://modelo-shop-app.vercel.app/login',
-    'https://modelo-shop-app-git-main-dariorafaels-projects.vercel.app/',
-    'https://farmacia-app-two.vercel.app/',
+    'https://modelo-shop-app-git-main-dariorafaels-projects.vercel.app',
+    'https://farmacia-app-two.vercel.app',  // <-- Sin la barra final
     /^http:\/\/localhost:\d+$/
 ];
 //
