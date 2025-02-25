@@ -255,20 +255,6 @@ app.post('/api/v1/actualizar-contrasenas', async (req, res) => {
     }
 });
 
-app.get('/api/v1/categorias', async (req, res) => {
-    try {
-        const pool = await sql.connect(config);
-        const result = await pool.request()
-            .execute('sp_ObtenerCategorias');
-
-        res.status(200).json(result.recordset);
-    } catch (err) {
-        console.error('Error al obtener categorias:', err);
-        res.status(500).send('Error del servidor al obtener categorias');
-    }
-});
-
-
 //FIRST
 app.get('/api/v1/medicamentos', async (req, res) => {
     try {
@@ -297,213 +283,39 @@ app.get('/api/v1/medicamentos', async (req, res) => {
     }
 });
 
-
-app.post('/api/v1/productosinsert', async (req, res) => {
-    const { nombre, categoria, stock, precio } = req.body;
-
-    try {
-        const pool = await sql.connect(config);
-
-        // Llamar al procedimiento almacenado con el prefijo 'sp'
-        const result = await pool.request()
-            .input('Nombre', sql.VarChar, nombre)
-            .input('Categoria', sql.VarChar, categoria)
-            .input('Stock', sql.Int, stock)
-            .input('Precio', sql.Decimal(18, 2), precio)
-            .execute('sp_InsertarProducto');
-
-        res.status(201).send('Producto añadido exitosamente');
-    } catch (err) {
-        if (err.message.includes('Categoría no encontrada')) {
-            return res.status(400).send('Categoría no encontrada');
-        }
-        console.error('Error al añadir producto:', err);
-        res.status(500).send('Error del servidor al añadir producto');
-    }
-});
-
-
-app.delete('/api/v1/productos/:id', async (req, res) => {
+app.put('/api/v1/medicamentos/:id', async (req, res) => {
     const { id } = req.params;
+    const { NombreGenerico, Precio } = req.body;
 
-    try {
-        console.log(`Attempting to delete product with ID: ${id}`); // Add logging
-
-        const pool = await sql.connect(config);
-        const result = await pool.request()
-            .input('ID', sql.Int, parseInt(id)) // Ensure ID is parsed as integer
-            .query('DELETE FROM Productos WHERE IDProductos = @ID');
-
-        console.log(`Delete result: ${result.rowsAffected[0]}`); // Log rows affected
-
-        if (result.rowsAffected[0] > 0) {
-            res.status(200).send('Producto eliminado exitosamente.');
-        } else {
-            res.status(404).send('Producto no encontrado.');
-        }
-    } catch (err) {
-        console.error('Detailed error al eliminar producto:', err);
-        res.status(500).send(`Error del servidor al eliminar producto: ${err.message}`);
+    if (!NombreGenerico || Precio === undefined) {
+        return res.status(400).json({ mensaje: 'Nombre y precio son requeridos' });
     }
-});
-
-
-app.put('/api/v1/productos/:id', async (req, res) => {
-    const { id } = req.params;
-    const { nombre, categoria, stock, precio } = req.body;
 
     try {
         const pool = await sql.connect(config);
-
-        // Llamar al procedimiento almacenado con el prefijo 'sp'
         const result = await pool.request()
             .input('ID', sql.Int, id)
-            .input('Nombre', sql.VarChar, nombre)
-            .input('Categoria', sql.VarChar, categoria)
-            .input('Stock', sql.Int, stock)
-            .input('Precio', sql.Decimal(18, 2), precio)
-            .execute('sp_ActualizarProducto');  // Llamada al procedimiento almacenado con prefijo 'sp'
+            .input('NombreGenerico', sql.NVarChar, NombreGenerico)
+            .input('Precio', sql.Decimal(10, 2), Precio)
+            .query(`
+                UPDATE Medicamentos
+                SET NombreGenerico = @NombreGenerico, Precio = @Precio
+                WHERE ID = @ID;
+            `);
 
-        res.status(200).send('Producto actualizado exitosamente.');
-    } catch (err) {
-        if (err.message.includes('Categoría no encontrada')) {
-            return res.status(400).send('Categoría no encontrada');
-        }
-        if (err.message.includes('Producto no encontrado')) {
-            return res.status(404).send('Producto no encontrado');
-        }
-        console.error('Error al actualizar producto:', err);
-        res.status(500).send('Error del servidor al actualizar producto.');
-    }
-});
-
-
-app.get('/api/v1/saldo', async (req, res) => {
-    try {
-        const pool = await sql.connect(config);
-        const result = await pool.request()
-            .query('SELECT * FROM dbo.fn_CalcularSaldo()');
-
-        const saldo = result.recordset[0];
-        res.status(200).json(saldo);
-    } catch (err) {
-        console.error('Error al obtener el saldo:', err);
-        res.status(500).send('Error del servidor al obtener el saldo');
-    }
-});
-
-
-
-app.get('/api/v1/transacciones', async (req, res) => {
-    try {
-        const pool = await sql.connect(config);
-
-        const result = await pool.request().query('SELECT * FROM Transaccion');
-
-
-
-        res.status(200).json({
-            transacciones: result.recordset,
-        });
-    } catch (err) {
-        console.error('Error al recuperar transacciones:', err);
-        res.status(500).send('Error del servidor al recuperar transacciones');
-    }
-});
-
-
-app.post('/api/v1/transaccionesinsert', async (req, res) => {
-    const { descripcion, monto, tipo, fecha } = req.body;
-
-    try {
-        const pool = await sql.connect(config);
-
-        if (!['ingreso', 'egreso'].includes(tipo)) {
-            return res.status(400).send('Tipo de transacción inválido');
+        if (result.rowsAffected[0] === 0) {
+            return res.status(404).json({ mensaje: 'Medicamento no encontrado' });
         }
 
-        await pool.request()
-            .input('Descripcion', sql.VarChar(255), descripcion)
-            .input('Monto', sql.Decimal(10, 2), monto)
-            .input('Tipo', sql.VarChar(10), tipo)
-            .input('Fecha', sql.DateTime, fecha)
-            .execute('sp_InsertarTransaccion');
-
-        res.status(201).send('Transacción añadida exitosamente');
+        res.status(200).json({ mensaje: 'Medicamento actualizado correctamente' });
     } catch (err) {
-        console.error('Error al añadir transacción:', err);
-        res.status(500).send('Error del servidor al añadir transacción');
+        console.error('Error al actualizar medicamento:', err);
+        res.status(500).send('Error del servidor al actualizar medicamento');
     }
 });
 
-app.get('/api/v1/ventas', async (req, res) => {
-    try {
-        const pool = await sql.connect(config);
 
-        const result = await pool.request().query(`
-            SELECT
-                v.IDVenta,
-                IDCategoria = (SELECT c.IDCategoria FROM Productos c  WHERE c.IDProductos = v.IDProducto),
-                v.IDProducto,
-                Producto = (SELECT p.Nombre FROM Productos p WHERE p.IDProductos = v.IDProducto),
-                v.Stock,
-                v.PrecioUnitario,
-                v.PrecioSubtotal,
-                Fecha =(SELECT ven.FechaVenta FROM Ventas ven WHERE ven.IDVenta = v.IDVenta)
-            FROM VentasProductos v
-        `);
 
-        res.status(200).json({
-            ventas: result.recordset,
-        });
-    } catch (err) {
-        console.error('Error al recuperar ventas:', err);
-        res.status(500).send('Error del servidor al recuperar ventas');
-    }
-});
-
-app.post('/api/v1/ventas', async (req, res) => {
-    const { productos } = req.body;
-
-    if (!Array.isArray(productos) || productos.length === 0) {
-        return res.status(400).json({
-            message: 'Debe proporcionar al menos un producto para la venta',
-        });
-    }
-
-    const pool = await sql.connect(config);
-
-    try {
-        const table = new sql.Table('TVP_Productos');
-        table.columns.add('IDProducto', sql.Int);
-        table.columns.add('Stock', sql.Int);
-        table.columns.add('PrecioUnitario', sql.Decimal(10, 2));
-        table.columns.add('PrecioSubtotal', sql.Decimal(10, 2));
-
-        productos.forEach(producto => {
-            table.rows.add(producto.IDProducto, producto.Stock, producto.PrecioUnitario, producto.PrecioSubtotal);
-        });
-
-        const result = await pool.request()
-            .input('FechaVenta', sql.DateTime, new Date())
-            .input('Productos', table)
-            .execute('sp_InsertarVenta');
-
-        const idVenta = result.returnValue;
-
-        res.status(201).json({
-            message: 'Venta registrada exitosamente',
-            idVenta: idVenta,
-        });
-
-    } catch (error) {
-        console.error('Error al procesar la venta:', error);
-        res.status(500).json({
-            message: 'Error al procesar la venta',
-            error: error.message,
-        });
-    }
-});
 
 app.listen(port, () => {
     console.log(`Servidor en ejecución en el puerto ${port}`);
