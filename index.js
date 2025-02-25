@@ -269,7 +269,7 @@ app.get('/api/v1/categorias', async (req, res) => {
 });
 
 
-
+//FIRST
 app.get('/api/v1/medicamentos', async (req, res) => {
     try {
         const pool = await sql.connect(config);
