@@ -344,6 +344,52 @@ app.post('/api/v1/ventas', async (req, res) => {
     }
 });
 
+app.put('/api/v1/medicamentos/:id/stock', async (req, res) => {
+    const { id } = req.params;
+    const { cantidad } = req.body;
+
+    if (cantidad === undefined) {
+        return res.status(400).json({ mensaje: 'La cantidad es requerida' });
+    }
+
+    try {
+        const pool = await sql.connect(config);
+
+        // First get current stock
+        const currentStock = await pool.request()
+            .input('ID', sql.Int, id)
+            .query('SELECT UnidadesPorCaja FROM Medicamentos WHERE ID = @ID');
+
+        if (currentStock.recordset.length === 0) {
+            return res.status(404).json({ mensaje: 'Medicamento no encontrado' });
+        }
+
+        const newStock = currentStock.recordset[0].UnidadesPorCaja - cantidad;
+
+        // Update stock
+        const result = await pool.request()
+            .input('ID', sql.Int, id)
+            .input('Stock', sql.Int, newStock)
+            .query(`
+                UPDATE Medicamentos
+                SET UnidadesPorCaja = @Stock
+                WHERE ID = @ID;
+            `);
+
+        if (result.rowsAffected[0] === 0) {
+            return res.status(404).json({ mensaje: 'Error al actualizar el stock' });
+        }
+
+        res.status(200).json({
+            mensaje: 'Stock actualizado correctamente',
+            nuevoStock: newStock
+        });
+    } catch (err) {
+        console.error('Error al actualizar stock:', err);
+        res.status(500).json({ mensaje: 'Error del servidor al actualizar stock' });
+    }
+});
+
 
 
 app.listen(port, () => {
