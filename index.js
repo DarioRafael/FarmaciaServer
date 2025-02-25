@@ -17,7 +17,7 @@ const config = {
         connectTimeout: 30000,
     },
 };
-
+//
 const allowedOrigins = [
     'https://modelo-shop-dch54tpat-dariorafaels-projects.vercel.app',
     'https://modelo-shop-app.vercel.app',
