@@ -314,6 +314,35 @@ app.put('/api/v1/medicamentos/:id', async (req, res) => {
     }
 });
 
+app.post('/api/v1/ventas', async (req, res) => {
+    const { IDVenta, IDProducto, Stock, PrecioUnitario, PrecioSubtotal, FechaVenta } = req.body;
+
+    // Validar que todos los campos estén presentes
+    if (!IDVenta || !IDProducto || !Stock || !PrecioUnitario || !PrecioSubtotal || !FechaVenta) {
+        return res.status(400).json({ mensaje: 'Todos los campos son requeridos' });
+    }
+
+    try {
+        const pool = await sql.connect(config);
+
+        await pool.request()
+            .input('IDVenta', sql.Int, IDVenta)
+            .input('IDProducto', sql.Int, IDProducto)
+            .input('Stock', sql.Int, Stock)
+            .input('PrecioUnitario', sql.Decimal(5, 2), PrecioUnitario)
+            .input('PrecioSubtotal', sql.Decimal(7, 2), PrecioSubtotal)
+            .input('FechaVenta', sql.Date, FechaVenta)
+            .query(`
+                INSERT INTO VentaMedicamentos (IDVenta, IDProducto, Stock, PrecioUnitario, PrecioSubtotal, FechaVenta)
+                VALUES (@IDVenta, @IDProducto, @Stock, @PrecioUnitario, @PrecioSubtotal, @FechaVenta);
+            `);
+
+        res.status(201).json({ mensaje: 'Venta registrada correctamente' });
+    } catch (err) {
+        console.error('Error al registrar la venta:', err);
+        res.status(500).json({ mensaje: 'Error del servidor al registrar la venta' });
+    }
+});
 
 
 
