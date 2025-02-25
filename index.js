@@ -270,15 +270,29 @@ app.get('/api/v1/categorias', async (req, res) => {
 
 
 
-app.get('/api/v1/productos', async (req, res) => {
+app.get('/api/v1/medicamentos', async (req, res) => {
     try {
         const pool = await sql.connect(config);
         const result = await pool.request()
-            .query('SELECT P.IDProductos,P.Nombre,Categoria = (SELECT C.Nombre FROM Categoria C WHERE P.IDCategoria = C.IDCategoria),P.Stock,P.Precio,P.PrecioDeCompra FROM Productos P;');
+            .query(`
+                SELECT 
+                    M.ID,
+                    M.NombreGenerico,
+                    M.NombreMedico,
+                    M.Fabricante,
+                    M.Contenido,
+                    M.FormaFarmaceutica,
+                    M.FechaFabricacion,
+                    M.Presentacion,
+                    M.FechaCaducidad,
+                    M.UnidadesPorCaja
+                FROM Medicamentos M;
+            `);
+
         res.status(200).json(result.recordset);
     } catch (err) {
-        console.error('Error al obtener productos:', err);
-        res.status(500).send('Error del servidor al obtener productos');
+        console.error('Error al obtener medicamentos:', err);
+        res.status(500).send('Error del servidor al obtener medicamentos');
     }
 });
 
