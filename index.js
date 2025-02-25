@@ -285,7 +285,8 @@ app.get('/api/v1/medicamentos', async (req, res) => {
                     M.FechaFabricacion,
                     M.Presentacion,
                     M.FechaCaducidad,
-                    M.UnidadesPorCaja
+                    M.UnidadesPorCaja,
+                    M.Precio
                 FROM Medicamentos M;
             `);
 
