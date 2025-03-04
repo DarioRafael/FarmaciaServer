@@ -498,6 +498,24 @@ app.post('/api/v1/transacciones', async (req, res) => {
 });
 
 
+app.get('/api/v1/transaccionesGet', async (req, res) => {
+    try {
+        const pool = await sql.connect(config);
+
+        // Query to get all transactions
+        const result = await pool.request()
+            .query('SELECT id, descripcion, monto, tipo, fecha FROM transaccionesFarmacia ORDER BY fecha DESC');
+
+        res.status(200).json({
+            transacciones: result.recordset
+        });
+    } catch (err) {
+        console.error('Error al obtener transacciones:', err);
+        res.status(500).json({ mensaje: 'Error del servidor al obtener las transacciones' });
+    }
+});
+
+
 app.listen(port, () => {
     console.log(`Servidor en ejecución en el puerto ${port}`);
 });
