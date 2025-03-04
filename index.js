@@ -440,11 +440,18 @@ app.put('/api/v1/medicamentos/:id/reabastecer', async (req, res) => {
 
 app.get('/api/v1/saldo', async (req, res) => {
     try {
-        const result = await pool.query('SELECT saldo, ingresos, egresos FROM DineroFarmacia WHERE id = 1');
-        res.json(result.rows[0]);
+        const pool = await sql.connect(config);
+        const result = await pool.request()
+            .query('SELECT saldo, ingresos, egresos FROM DineroFarmacia WHERE id = 1');
+
+        if (result.recordset.length > 0) {
+            res.status(200).json(result.recordset[0]);
+        } else {
+            res.status(404).send('Información de saldo no encontrada');
+        }
     } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
+        console.error('Error al obtener saldo:', err);
+        res.status(500).send('Error del servidor al obtener saldo');
     }
 });
 
