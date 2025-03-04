@@ -436,6 +436,19 @@ app.put('/api/v1/medicamentos/:id/reabastecer', async (req, res) => {
     }
 });
 
+
+
+app.get('/api/v1/saldo', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT saldo, ingresos, egresos FROM DineroFarmacia WHERE id = 1');
+        res.json(result.rows[0]);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
+
 app.listen(port, () => {
     console.log(`Servidor en ejecución en el puerto ${port}`);
 });
