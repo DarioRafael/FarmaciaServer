@@ -455,6 +455,48 @@ app.get('/api/v1/saldo', async (req, res) => {
     }
 });
 
+app.post('/api/v1/transacciones', async (req, res) => {
+    const { descripcion, monto, tipo, fecha } = req.body;
+
+    // Validación básica
+    if (!descripcion || !monto || !tipo || !fecha) {
+        return res.status(400).json({ mensaje: 'Todos los campos son requeridos' });
+    }
+
+    if (tipo.toLowerCase() !== 'ingreso' && tipo.toLowerCase() !== 'egreso') {
+        return res.status(400).json({ mensaje: 'El tipo debe ser "ingreso" o "egreso"' });
+    }
+
+    try {
+        const pool = await sql.connect(config);
+
+        // Obtener el próximo ID disponible
+        const maxIdResult = await pool.request()
+            .query('SELECT ISNULL(MAX(id), 0) + 1 AS nextId FROM transaccionesFarmacia');
+        const nextId = maxIdResult.recordset[0].nextId;
+
+        // Insertar la transacción
+        await pool.request()
+            .input('id', sql.Int, nextId)
+            .input('descripcion', sql.VarChar(255), descripcion)
+            .input('monto', sql.Decimal(10, 2), monto)
+            .input('tipo', sql.VarChar(50), tipo)
+            .input('fecha', sql.Date, new Date(fecha))
+            .query(`
+                INSERT INTO transaccionesFarmacia (id, descripcion, monto, tipo, fecha)
+                VALUES (@id, @descripcion, @monto, @tipo, @fecha);
+            `);
+
+        res.status(201).json({
+            mensaje: 'Transacción registrada correctamente',
+            id: nextId
+        });
+    } catch (err) {
+        console.error('Error al registrar la transacción:', err);
+        res.status(500).json({ mensaje: 'Error del servidor al registrar la transacción' });
+    }
+});
+
 
 app.listen(port, () => {
     console.log(`Servidor en ejecución en el puerto ${port}`);
