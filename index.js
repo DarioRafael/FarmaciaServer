@@ -81,8 +81,6 @@ app.post('/api/v1/ingresar', async (req, res) => {
     }
 });
 
-
-
 const authorizeRole = (roles) => {
     return (req, res, next) => {
         const userRole = req.user.rol;
@@ -94,12 +92,9 @@ const authorizeRole = (roles) => {
         }
     };
 };
-
 app.get('/api/v1/admin', authorizeRole(['admin']), (req, res) => {
     res.status(200).send('Acceso a administrador concedido.');
 });
-
-
 
 app.post('/api/v1/registrar', async (req, res) => {
     const { nombre, correo, password, rol } = req.body;
@@ -133,8 +128,6 @@ app.post('/api/v1/registrar', async (req, res) => {
     }
 });
 
-
-
 app.get('/api/v1/trabajadores', async (req, res) => {
     try {
         const pool = await sql.connect(config);
@@ -167,8 +160,6 @@ app.delete('/api/v1/trabajadores/:id/eliminar', async (req, res) => {
         res.status(500).send('Error del servidor al eliminar trabajador.');
     }
 });
-
-
 
 app.delete('/api/v1/trabajadores/:id', async (req, res) => {
     try {
@@ -254,7 +245,6 @@ app.post('/api/v1/actualizar-contrasenas', async (req, res) => {
         res.status(500).send('Error al actualizar contraseñas.');
     }
 });
-
 //FIRST
 app.get('/api/v1/medicamentos', async (req, res) => {
     try {
@@ -272,6 +262,7 @@ app.get('/api/v1/medicamentos', async (req, res) => {
                     M.Presentacion,
                     M.FechaCaducidad,
                     M.UnidadesPorCaja,
+                    M.Stock,
                     M.Precio
                 FROM Medicamentos M;
             `);
@@ -358,13 +349,13 @@ app.put('/api/v1/medicamentos/:id/stock', async (req, res) => {
         // First get current stock
         const currentStock = await pool.request()
             .input('ID', sql.Int, id)
-            .query('SELECT UnidadesPorCaja FROM Medicamentos WHERE ID = @ID');
+            .query('SELECT Stock FROM Medicamentos WHERE ID = @ID');
 
         if (currentStock.recordset.length === 0) {
             return res.status(404).json({ mensaje: 'Medicamento no encontrado' });
         }
 
-        const newStock = currentStock.recordset[0].UnidadesPorCaja - cantidad;
+        const newStock = currentStock.recordset[0].Stock - cantidad;
 
         // Update stock
         const result = await pool.request()
@@ -372,7 +363,7 @@ app.put('/api/v1/medicamentos/:id/stock', async (req, res) => {
             .input('Stock', sql.Int, newStock)
             .query(`
                 UPDATE Medicamentos
-                SET UnidadesPorCaja = @Stock
+                SET Stock = @Stock
                 WHERE ID = @ID;
             `);
 
@@ -404,13 +395,13 @@ app.put('/api/v1/medicamentos/:id/reabastecer', async (req, res) => {
         // First get current stock
         const currentStock = await pool.request()
             .input('ID', sql.Int, id)
-            .query('SELECT UnidadesPorCaja FROM Medicamentos WHERE ID = @ID');
+            .query('SELECT Stock FROM Medicamentos WHERE ID = @ID');
 
         if (currentStock.recordset.length === 0) {
             return res.status(404).json({ mensaje: 'Medicamento no encontrado' });
         }
 
-        const newStock = currentStock.recordset[0].UnidadesPorCaja + cantidad;
+        const newStock = currentStock.recordset[0].Stock + cantidad;
 
         // Update stock
         const result = await pool.request()
@@ -418,7 +409,7 @@ app.put('/api/v1/medicamentos/:id/reabastecer', async (req, res) => {
             .input('Stock', sql.Int, newStock)
             .query(`
                 UPDATE Medicamentos
-                SET UnidadesPorCaja = @Stock
+                SET Stock = @Stock
                 WHERE ID = @ID;
             `);
 
