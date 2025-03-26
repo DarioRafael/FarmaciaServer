@@ -507,6 +507,32 @@ app.get('/api/v1/transaccionesGet', async (req, res) => {
 });
 
 
+
+const inventoryApiUrl = 'https://ladybird-regular-blatantly.ngrok-free.app/api/producto/inventario';
+
+// Nueva ruta para obtener el inventario externo
+app.get('/api/v1/inventario-externo', async (req, res) => {
+    try {
+        // Hacer la solicitud a la API externa
+        const response = await axios.get(inventoryApiUrl);
+
+        // La respuesta parece ser un array de productos
+        const productos = response.data;
+
+        // Enviar los productos como respuesta
+        res.status(200).json(productos);
+    } catch (err) {
+        console.error('Error al obtener inventario externo:', err.message);
+        res.status(500).json({
+            mensaje: 'Error al obtener el inventario externo',
+            error: err.message
+        });
+    }
+});
+
+
+
+
 app.listen(port, () => {
     console.log(`Servidor en ejecución en el puerto ${port}`);
 });
