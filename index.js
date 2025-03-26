@@ -527,7 +527,7 @@ app.get('/api/v1/inventario-externo', async (req, res) => {
             mensaje: 'Error al obtener el inventario externo',
             error: err.message
         });
-    }
+    }//
 });
 
 
