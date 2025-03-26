@@ -507,19 +507,12 @@ app.get('/api/v1/transaccionesGet', async (req, res) => {
 });
 
 
-
-const inventoryApiUrl = 'https://ladybird-regular-blatantly.ngrok-free.app/api/producto/inventario';
-
-// Nueva ruta para obtener el inventario externo
-app.get('/api/v1/inventario-externo', async (req, res) => {
+app.get('/api/v1/medicamentos-farmacia-manuelito', async (req, res) => {
     try {
-        // Hacer la solicitud a la API externa
-        const response = await axios.get(inventoryApiUrl);
+        const response = await axios.get('https://ladybird-regular-blatantly.ngrok-free.app/api/producto/inventario');
 
-        // La respuesta parece ser un array de productos
         const productos = response.data;
 
-        // Enviar los productos como respuesta
         res.status(200).json(productos);
     } catch (err) {
         console.error('Error al obtener inventario externo:', err.message);
@@ -530,7 +523,37 @@ app.get('/api/v1/inventario-externo', async (req, res) => {
     }//Pruebita
 });
 
+app.get('/api/v1/medicamentos-farmacia-gaelle', async (req, res) => {
+    try {
+        const response = await axios.get('https://farmacia-api.loca.lt/api/medicamentos');
 
+        const medicamentos = response.data;
+
+        res.status(200).json(medicamentos);
+    } catch (err) {
+        console.error('Error al obtener medicamentos de Farmacia API:', err.message);
+        res.status(500).json({
+            mensaje: 'Error al obtener los medicamentos de Farmacia API',
+            error: err.message
+        });
+    }
+});
+
+app.get('/api/v1/medicamentos-farmacia-dele', async (req, res) => {
+    try {
+        const response = await axios.get('https://farmacia-dele.loca.lt/api/medicamentos');
+
+        const medicamentos = response.data;
+
+        res.status(200).json(medicamentos);
+    } catch (err) {
+        console.error('Error al obtener medicamentos de Farmacia Dele:', err.message);
+        res.status(500).json({
+            mensaje: 'Error al obtener los medicamentos de Farmacia Dele',
+            error: err.message
+        });
+    }
+});
 
 
 app.listen(port, () => {
