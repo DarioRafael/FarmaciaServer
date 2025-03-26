@@ -5,7 +5,7 @@ const cors = require('cors');
 const app = express();
 const port = process.env.PORT || 3000;
 const bcrypt = require('bcrypt');
-
+const axios = require('axios');
 
 const config = {
     user: process.env.DB_USER,
