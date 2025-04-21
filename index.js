@@ -506,8 +506,37 @@ app.get('/api/v1/transaccionesGet', async (req, res) => {
 
 
 // Endpoint GET para obtener todos los pedidos
-app.get('/api/v1/pedidosGet', (req, res) => {
-    res.status(200).json({ pedidos });
+app.get('/api/v1/pedidosGet', async (req, res) => {
+    try {
+        const pool = await sql.connect();
+
+        // Traer todos los pedidos
+        const pedidosResult = await pool.request().query(`
+            SELECT * FROM pedidos;
+        `);
+        const pedidos = pedidosResult.recordset;
+
+        // Traer todos los productos_pedido
+        const productosResult = await pool.request().query(`
+            SELECT * FROM productos_pedido;
+        `);
+        const productos = productosResult.recordset;
+
+        // Asociar productos a su pedido correspondiente
+        const pedidosConProductos = pedidos.map(pedido => {
+            const productosDelPedido = productos.filter(p => p.pedido_id === pedido.id);
+            return {
+                ...pedido,
+                productos: productosDelPedido
+            };
+        });
+
+        res.status(200).json({ pedidos: pedidosConProductos });
+
+    } catch (error) {
+        console.error('Error al obtener pedidos:', error);
+        res.status(500).json({ message: 'Error al obtener los pedidos', error: error.message });
+    }
 });
 
 // Endpoint PUT para actualizar el estado de un pedido
