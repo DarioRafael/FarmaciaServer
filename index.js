@@ -508,7 +508,7 @@ app.get('/api/v1/transaccionesGet', async (req, res) => {
 // Endpoint GET para obtener todos los pedidos
 app.get('/api/v1/pedidosGet', async (req, res) => {
     try {
-        const pool = await sql.connect();
+        const pool = await sql.connect(config);
 
         // Traer todos los pedidos
         const pedidosResult = await pool.request().query(`
@@ -539,25 +539,44 @@ app.get('/api/v1/pedidosGet', async (req, res) => {
     }
 });
 
+
 // Endpoint PUT para actualizar el estado de un pedido
-app.put('/api/v1/pedidos/:id', (req, res) => {
+app.put('/api/v1/pedidos/:id', async (req, res) => {
     const { id } = req.params;
     const { estado } = req.body;
 
-    // Buscar el pedido por ID
-    const pedido = pedidos.find((p) => p.id === parseInt(id));
-
-    if (!pedido) {
-        return res.status(404).json({ message: 'Pedido no encontrado' });
+    if (!estado) {
+        return res.status(400).json({ message: 'El estado es obligatorio' });
     }
 
-    // Actualizar el estado y la fecha de actualización
-    pedido.estado = estado;
-    pedido.fecha_actualizacion = new Date().toISOString();
+    try {
+        const pool = await sql.connect(config);
 
-    res.status(200).json({ message: 'Estado del pedido actualizado', pedido });
+        // Actualizar el estado del pedido
+        const result = await pool.request()
+            .input('id', sql.Int, id)
+            .input('estado', sql.NVarChar(20), estado)
+            .query(`
+                UPDATE pedidos 
+                SET estado = @estado, fecha_actualizacion = GETDATE() 
+                WHERE id = @id;
+                
+                SELECT * FROM pedidos WHERE id = @id;
+            `);
+
+        if (result.recordset.length === 0) {
+            return res.status(404).json({ message: 'Pedido no encontrado' });
+        }
+
+        res.status(200).json({
+            message: 'Estado del pedido actualizado',
+            pedido: result.recordset[0]
+        });
+    } catch (error) {
+        console.error('Error al actualizar el pedido:', error);
+        res.status(500).json({ message: 'Error al actualizar el pedido', error: error.message });
+    }
 });
-
 
 
 // POST para crear un nuevo pedido con sus productos
@@ -569,7 +588,7 @@ app.post('/api/v1/pedidos', async (req, res) => {
     }
 
     try {
-        const pool = await sql.connect();
+        const pool = await sql.connect(config);
 
         // Inicia una transacción
         const transaction = new sql.Transaction(pool);
