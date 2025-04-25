@@ -510,19 +510,16 @@ app.get('/api/v1/pedidosGet', async (req, res) => {
     try {
         const pool = await sql.connect(config);
 
-        // Traer todos los pedidos
         const pedidosResult = await pool.request().query(`
             SELECT * FROM pedidos;
         `);
         const pedidos = pedidosResult.recordset;
 
-        // Traer todos los productos_pedido
         const productosResult = await pool.request().query(`
             SELECT * FROM productos_pedido;
         `);
         const productos = productosResult.recordset;
 
-        // Asociar productos a su pedido correspondiente
         const pedidosConProductos = pedidos.map(pedido => {
             const productosDelPedido = productos.filter(p => p.pedido_id === pedido.id);
             return {
@@ -643,6 +640,159 @@ app.post('/api/v1/pedidos', async (req, res) => {
     }
 });
 
+app.post('/api/v1/bodega/pagar-pedido', async (req, res) => {
+    const { pedido_id } = req.body;
+
+    if (!pedido_id) {
+        return res.status(400).json({
+            message: 'Se requiere el ID del pedido'
+        });
+    }
+
+    try {
+        const pool = await sql.connect(config);
+
+        const pedidoResult = await pool.request()
+            .input('id', sql.Int, pedido_id)
+            .query('SELECT * FROM pedidos WHERE id = @id');
+
+        if (pedidoResult.recordset.length === 0) {
+            return res.status(404).json({ message: 'Pedido no encontrado' });
+        }
+
+        const pedido = pedidoResult.recordset[0];
+
+        if (pedido.estado === 'cancelado') {
+            return res.status(400).json({ message: 'No se puede pagar un pedido que ha sido cancelado' });
+        }
+
+        if (pedido.estado === 'completado') {
+            return res.status(400).json({ message: 'No se puede pagar un pedido que ya fue completado' });
+        }
+
+        if (pedido.estado === 'pagado') {
+            return res.status(400).json({ message: 'Este pedido ya está pagado' });
+        }
+
+        const transaction = new sql.Transaction(pool);
+        await transaction.begin();
+
+        try {
+            const request = new sql.Request(transaction);
+
+            await request
+                .input('id', sql.Int, pedido_id)
+                .input('estado', sql.NVarChar(20), 'pagado')
+                .input('nota', sql.NVarChar(sql.MAX), 'Pedido marcado como pagado')
+                .query(`
+                    UPDATE pedidos 
+                    SET estado = @estado, 
+                        fecha_actualizacion = GETDATE(),
+                        notas = CASE 
+                                  WHEN notas IS NULL OR notas = '' THEN @nota
+                                  ELSE notas + '; ' + @nota
+                                END
+                    WHERE id = @id
+                `);
+
+            await transaction.commit();
+
+            res.status(200).json({
+                message: 'Pedido marcado como pagado exitosamente',
+                pedido_id,
+                estado: 'pagado'
+            });
+        } catch (err) {
+            await transaction.rollback();
+            console.error('Error al marcar el pedido como pagado:', err);
+            res.status(500).json({
+                message: 'Error al marcar el pedido como pagado',
+                error: err.message
+            });
+        }
+    } catch (err) {
+        console.error('Error en la conexión:', err);
+        res.status(500).json({
+            message: 'Error de conexión a la base de datos',
+            error: err.message
+        });
+    }
+});
+
+app.post('/api/v1/bodega/completar-pedido', async (req, res) => {
+    const { pedido_id } = req.body;
+
+    if (!pedido_id) {
+        return res.status(400).json({
+            message: 'Se requiere el ID del pedido'
+        });
+    }
+
+    try {
+        const pool = await sql.connect(config);
+
+        const pedidoResult = await pool.request()
+            .input('id', sql.Int, pedido_id)
+            .query('SELECT * FROM pedidos WHERE id = @id');
+
+        if (pedidoResult.recordset.length === 0) {
+            return res.status(404).json({ message: 'Pedido no encontrado' });
+        }
+
+        const pedido = pedidoResult.recordset[0];
+
+        if (pedido.estado === 'cancelado') {
+            return res.status(400).json({ message: 'No se puede completar un pedido que ha sido cancelado' });
+        }
+
+        if (pedido.estado === 'completado') {
+            return res.status(400).json({ message: 'Este pedido ya está completado' });
+        }
+
+        const transaction = new sql.Transaction(pool);
+        await transaction.begin();
+
+        try {
+            const request = new sql.Request(transaction);
+
+            await request
+                .input('id', sql.Int, pedido_id)
+                .input('estado', sql.NVarChar(20), 'completado')
+                .input('nota', sql.NVarChar(sql.MAX), 'Pedido marcado como completado')
+                .query(`
+                    UPDATE pedidos 
+                    SET estado = @estado, 
+                        fecha_actualizacion = GETDATE(),
+                        notas = CASE 
+                                  WHEN notas IS NULL OR notas = '' THEN @nota
+                                  ELSE notas + '; ' + @nota
+                                END
+                    WHERE id = @id
+                `);
+
+            await transaction.commit();
+
+            res.status(200).json({
+                message: 'Pedido marcado como completado exitosamente',
+                pedido_id,
+                estado: 'completado'
+            });
+        } catch (err) {
+            await transaction.rollback();
+            console.error('Error al marcar el pedido como completado:', err);
+            res.status(500).json({
+                message: 'Error al marcar el pedido como completado',
+                error: err.message
+            });
+        }
+    } catch (err) {
+        console.error('Error en la conexión:', err);
+        res.status(500).json({
+            message: 'Error de conexión a la base de datos',
+            error: err.message
+        });
+    }
+});
 
 
 
