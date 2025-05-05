@@ -794,6 +794,36 @@ app.post('/api/v1/bodega/completar-pedido', async (req, res) => {
     }
 });
 
+app.get('/api/v1/inventarioConCodigo', async (req, res) => {
+    try {
+        const pool = await sql.connect(config);
+        const result = await pool.request()
+            .query(`
+                SELECT
+                    M.ID,
+                    M.Codigo,
+                    M.NombreGenerico,
+                    M.NombreMedico,
+                    M.Fabricante,
+                    M.Contenido,
+                    M.FormaFarmaceutica,
+                    FORMAT(M.FechaFabricacion, 'yyyy-MM-dd') AS FechaFabricacion,
+                    M.Presentacion,
+                    FORMAT(M.FechaCaducidad, 'yyyy-MM-dd') AS FechaCaducidad,
+                    M.UnidadesPorCaja,
+                    M.Stock,
+                    M.Precio
+                FROM Medicamentos M;
+            `);
+
+        res.status(200).json(result.recordset);
+    } catch (err) {
+        console.error('Error al obtener medicamentos:', err);
+        res.status(500).send('Error del servidor al obtener medicamentos');
+    }
+});
+
+
 
 
 app.get('/api/v1/medicamentos-farmacia-manuelito', async (req, res) => {
