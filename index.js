@@ -37,6 +37,7 @@ app.use(cors({
 }));
 
 
+//URL PADRE : https://bodega-server.vercel.app/
 
 app.use(express.json());
 
